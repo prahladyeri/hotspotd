@@ -1,6 +1,8 @@
 #Introduction
 *Hotspotd* is a small linux daemon to create a wifi hotspot on linux. It depends on *hostapd* for AP provisioning and *dnsmasq* to assign IP addresses to devices.
 
+Hotspotd works by creating a virtual NAT (Network address transation) table between your connected device and the internet using *iptables*.
+
 #Dependencies
 Since *dnsmasq* is typically included on most linux distributions, *hostapd* is the only dependency that you typically need to install:
 
