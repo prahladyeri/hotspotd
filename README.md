@@ -1,11 +1,8 @@
-hotspotd
-========
-
 #Introduction
-_Hotspotd_ is a small linux daemon to create a wifi hotspot on linux. It depends on hostapd for AP provisioning and dnsmasq to assign IP addresses to devices.
+*Hotspotd* is a small linux daemon to create a wifi hotspot on linux. It depends on *hostapd* for AP provisioning and *dnsmasq* to assign IP addresses to devices.
 
 #Dependencies
-Since dnsmasq is typically included in most linux distributions, hostapd is the only dependency that you typically need to install:
+Since *dnsmasq* is typically included on most linux distributions, *hostapd* is the only dependency that you typically need to install:
 
 ```sudo apt-get install hostapd```
 
@@ -34,3 +31,15 @@ To stop hotspot:
 
 The first time you run hotspotd, it will ask you for configuration values for SSID, password, etc. Alternatively, you may also run:
 ```sudo hotspotd configure```
+
+#Testing status
+This package has been tested on:
+* Ubuntu 12.04 LTS
+* Ubuntu 14.04 LTS
+
+In theory, it should work on other distros too, but you will have to try those out and tell me!
+
+#Notes
+* Replace `sudo` with `su` or `su -c` if you manage superuser access in that manner.
+* PyPI home page could be found at https://pypi.python.org/pypi/hotspotd.
+* I might add GUI support using maybe QT or GTK+ if this is well received.
