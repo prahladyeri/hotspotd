@@ -138,7 +138,7 @@ def check_interfaces():
 			text=line.split(' ')[0]
 			if text.startswith(wlan):
 				bwlan = True
-			elif text.startswith('ppp0'):
+			elif text.startswith(ppp):
 				bppp = True
 				
 	if not bwlan:
