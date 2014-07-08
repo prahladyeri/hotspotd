@@ -29,7 +29,7 @@ To start hotspot:
 ```sudo hotspotd start```
 
 To stop hotspot:
-```sudo hotspotd start```
+```sudo hotspotd stop```
 
 The first time you run hotspotd, it will ask you for configuration values for SSID, password, etc. Alternatively, you may also run:
 ```sudo hotspotd configure```
