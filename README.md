@@ -24,8 +24,6 @@ cd hotspotd-0.1/
 sudo python setup.py install
 ```
 
-You may append the last statement with a --prefix argument in case you don't wish to install the package to the default python pacakges path.
-
 #How to use
 
 To start hotspot:
