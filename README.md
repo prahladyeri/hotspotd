@@ -44,4 +44,4 @@ In theory, it should work on other distros too, but you will have to try those o
 #Notes
 * Replace `sudo` with `su` or `su -c` if you manage superuser access in that manner.
 * PyPI home page could be found at https://pypi.python.org/pypi/hotspotd.
-* I might add GUI support using maybe QT or GTK+ if this is well received.
+* I might add GUI support using maybe QT or GTK+ depending on where this goes.
