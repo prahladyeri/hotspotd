@@ -43,17 +43,17 @@ The first time you run hotspotd, it will ask you for configuration values for SS
 
 * To create a hotspot, your wifi must support AP mode. To find that out, use this process:
 
-	# Find your kernel driver module in use by issuing the below command:
+	* Find your kernel driver module in use by issuing the below command:
 
 	```lspci -k | grep -A 3 -i network```
 
 	(example output: ath9k)
 
-	# Now, use the below command to find out your wifi capabilities (replace ath9k by your kernel driver):
+	* Now, use the below command to find out your wifi capabilities (replace ath9k by your kernel driver):
 
 	```modinfo ath9k | grep depend```
 
-	# If the above output includes “mac80211” then it means your wifi card will support the AP mode.	
+	* If the above output includes “mac80211” then it means your wifi card will support the AP mode.	
 
 #Testing status
 This package has been tested on:
