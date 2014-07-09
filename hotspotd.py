@@ -8,6 +8,7 @@ import argparse
 import cli
 import json
 import socket
+import platform
 
 class Proto:
 	pass
