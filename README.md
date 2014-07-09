@@ -15,7 +15,7 @@ Or on RHEL based distros:
 
 ```yum install hostapd```
 
-#How to install
+#Installation
 To install hotspotd, follow these steps:
 ```
 wget https://github.com/prahladyeri/hotspotd/raw/master/dist/hotspotd-0.1.tar.gz
@@ -24,7 +24,11 @@ cd hotspotd-0.1/
 sudo python setup.py install
 ```
 
-#How to use
+To uninstall hotspotd, just say:
+
+```sudo python setup.py uninstall```
+
+#Usage
 
 To start hotspot:
 ```sudo hotspotd start```
@@ -34,6 +38,22 @@ To stop hotspot:
 
 The first time you run hotspotd, it will ask you for configuration values for SSID, password, etc. Alternatively, you may also run:
 ```sudo hotspotd configure```
+
+#Troubleshooting
+
+* To create a hotspot, your wifi must support AP mode. To find that out, use this process:
+
+	# Find your kernel driver module in use by issuing the below command:
+
+	```lspci -k | grep -A 3 -i network```
+
+	(example output: ath9k)
+
+	# Now, use the below command to find out your wifi capabilities (replace ath9k by your kernel driver):
+
+	```modinfo ath9k | grep depend```
+
+	# If the above output includes “mac80211” then it means your wifi card will support the AP mode.	
 
 #Testing status
 This package has been tested on:
