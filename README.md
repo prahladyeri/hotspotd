@@ -65,7 +65,7 @@ This package has been tested on:
 * Ubuntu 12.04 LTS
 * Ubuntu 14.04 LTS
 
-In theory, it should work on other distros too, but you will have to try those out and tell me!
+In theory, it should work on other distros too, but you will have to try that and tell me!
 
 #Notes
 * Replace `sudo` with `su` or `su -c` if you manage superuser access in that manner.
