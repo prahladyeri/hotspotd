@@ -5,6 +5,25 @@
 import os
 import sys
 
+if 'uninstall' in sys.argv:
+	loc=os.sep.join(['/usr/local', 'lib', 'python' + sys.version[:3], 'site-packages'])
+	if not os.path.exists(loc+'/hotspotd'):
+		loc=os.sep.join(['/usr/local', 'lib', 'python' + sys.version[:3], 'dist-packages'])
+	if os.path.exists(loc + '/hotspotd'):
+		import shutil
+		print 'Removing files from ' + loc + '/hotspotd/'
+		try: shutil.rmtree(loc + '/hotspotd',ignore_errors=True)
+		except: pass
+		if os.path.islink('/usr/bin/hotspotd'):
+			print 'Removing symlink: /usr/bin/hotspotd'
+			try: shutil.remove('/usr/bin/hotspotd')
+			except: pass
+		print 'Uninstall complete'
+	else:
+		print 'hotspotd could not be found on the system. Is it installed ?'
+	sys.exit(0)
+	
+		
 #INSTALL IT
 from distutils.core import setup
 s = setup(name='hotspotd',
