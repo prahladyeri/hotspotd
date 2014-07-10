@@ -55,7 +55,7 @@ The first time you run hotspotd, it will ask you for configuration values for SS
 
 		```lspci -k | grep -A 3 -i network```
 
-		(example output: ath9k)
+		(example module: ath9k)
 
 	* Now, use the below command to find out your wifi capabilities (replace ath9k by your kernel driver):
 
