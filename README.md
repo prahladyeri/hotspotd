@@ -9,14 +9,14 @@ Hotspotd works by creating a virtual NAT (Network address transation) table betw
 
 To install hostapd on ubuntu:
 
-```sudo apt-get install hostapd```
+```apt-get install hostapd```
 
 Or on RHEL based distros:
 
 ```yum install hostapd```
 
 #Installation
-To install hotspotd, follow these steps:
+To install hotspotd, just follow these steps:
 ```
 wget https://github.com/prahladyeri/hotspotd/raw/master/dist/hotspotd-0.1.tar.gz
 tar xvf hotspotd-0.1.tar.gz
@@ -31,12 +31,15 @@ To uninstall hotspotd, just say:
 #Usage
 
 To start hotspot:
+
 ```sudo hotspotd start```
 
 To stop hotspot:
+
 ```sudo hotspotd stop```
 
 The first time you run hotspotd, it will ask you for configuration values for SSID, password, etc. Alternatively, you may also run:
+
 ```sudo hotspotd configure```
 
 #Troubleshooting
@@ -61,7 +64,8 @@ The first time you run hotspotd, it will ask you for configuration values for SS
 	* If the above output includes “mac80211” then it means your wifi card will support the AP mode.	
 
 #Testing status
-This package has been tested on Qualcomm Atheros adapter AR9285 (ath9k) on the following distros:
+This package has been tested on Qualcomm Atheros adapter on the following distros:
+
 * Ubuntu 12.04 LTS
 * Ubuntu 14.04 LTS
 
