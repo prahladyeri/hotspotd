@@ -5,22 +5,46 @@
 import os
 import sys
 
-if 'uninstall' in sys.argv:
-	loc=os.sep.join(['/usr/local', 'lib', 'python' + sys.version[:3], 'site-packages'])
-	if not os.path.exists(loc+'/hotspotd'):
-		loc=os.sep.join(['/usr/local', 'lib', 'python' + sys.version[:3], 'dist-packages'])
-	if os.path.exists(loc + '/hotspotd'):
-		import shutil
-		print 'Removing files from ' + loc + '/hotspotd/'
-		try: shutil.rmtree(loc + '/hotspotd',ignore_errors=True)
+def uninstall_parts(package):
+	import shutil
+	#sys.prefix
+	loc=os.sep.join([sys.prefix, 'lib', 'python' + sys.version[:3], 'site-packages', package]) #try sys.prefix
+	if os.path.exists(loc):
+		print 'Removing files from ' + loc
+		shutil.rmtree(loc,ignore_errors=False)
+	loc=os.sep.join([sys.prefix, 'lib', 'python' + sys.version[:3], 'dist-packages', package]) #try dist-packages
+	if os.path.exists(loc):
+		print 'Removing files from ' + loc
+		shutil.rmtree(loc,ignore_errors=False)
+	
+	#/usr/local
+	loc=os.sep.join(['/usr/local', 'lib', 'python' + sys.version[:3], 'site-packages', package]) #try sys.prefix
+	if os.path.exists(loc):
+		print 'Removing files from ' + loc
+		shutil.rmtree(loc,ignore_errors=False)
+	loc=os.sep.join(['/usr/local', 'lib', 'python' + sys.version[:3], 'dist-packages', package]) #try dist-packages
+	if os.path.exists(loc):
+		print 'Removing files from ' + loc
+		shutil.rmtree(loc,ignore_errors=False)
+		
+	if os.path.exists('/usr/local/bin/hotspotd'):
+		print 'Removing file: /usr/local/bin/hotspotd'
+		try: shutil.remove('/usr/local/bin/hotspotd')
 		except: pass
-		if os.path.islink('/usr/bin/hotspotd'):
-			print 'Removing symlink: /usr/bin/hotspotd'
-			try: shutil.remove('/usr/bin/hotspotd')
-			except: pass
-		print 'Uninstall complete'
-	else:
-		print 'hotspotd could not be found on the system. Is it installed ?'
+	if os.path.exists('/usr/bin/hotspotd'):
+		print 'Removing file: /usr/bin/hotspotd'
+		try: shutil.remove('/usr/bin/hotspotd')
+		except: pass
+	if os.path.islink('/usr/bin/hotspotd'):
+		print 'Removing link: /usr/bin/hotspotd'
+		try: shutil.remove('/usr/bin/hotspotd')
+		except: pass
+	
+	#binary
+
+if 'uninstall' in sys.argv:
+	uninstall_parts('hotspotd')
+	print 'Uninstall complete'
 	sys.exit(0)
 	
 		
@@ -37,48 +61,6 @@ s = setup(name='hotspotd',
 	packages=['hotspotd'],
 	package_dir={'hotspotd': ''},
 	package_data={'hotspotd': ['run.dat']},
+	scripts=['hotspotd']
 	#data_files=[('config',['run.dat'])],
 	)
-	
-
-if 'install' in sys.argv:
-	pkk = 'site-packages'
-	#NOTE: sys.prefix doesn't equate to /usr/local for some reason
-	loc=os.sep.join(['/usr/local', 'lib', 'python' + sys.version[:3], 'site-packages'])
-	if not os.path.exists(loc+'/hotspotd'):
-		loc=os.sep.join(['/usr/local', 'lib', 'python' + sys.version[:3], 'dist-packages'])
-	
-	for i in range(len(sys.argv)):
-		s = sys.argv[i]
-		if '--prefix=' in s:
-			s=s.replace('--prefix=','').strip()
-			loc=os.sep.join([s, 'lib', 'python' + sys.version[:3], 'site-packages'])
-			if not os.path.exists(loc+'/hotspotd'):
-				loc=os.sep.join([s, 'lib', 'python' + sys.version[:3], 'dist-packages'])
-		elif s.strip()=='--prefix':
-			n=i+1
-			if n<=len(sys.argv):
-				s = sys.argv[n]
-				loc=os.sep.join([s, 'lib', 'python' + sys.version[:3], 'site-packages'])
-				if not os.path.exists(loc+'/hotspotd'):
-					loc=os.sep.join([s, 'lib', 'python' + sys.version[:3], 'dist-packages'])
-	print 'Install base: ' + loc
-
-	import distutils
-	distutils.file_util.copy_file(loc + '/hotspotd/hotspotd.py','/usr/bin/hotspotd',link='sym',preserve_mode=1)
-	os.chmod(loc + '/hotspotd/hotspotd.py',0755)
-	#print distutils.sysconfig.PREFIX
-	#print distutils.sysconfig.get_python_lib()
-	#~ import hotspotd
-	#~ print os.getcwd()
-	#~ print hotspotd.__file__
-	#~ print os.path.dirname(hotspotd.__file__)
-	#~ print s
-	#~ print ''
-	#~ loc=''
-	#~ if '--prefix' in sys.argv:
-		#~ loc=os.sep.join([sys.argv['prefix'], 'lib', 'python' + sys.version[:3], 'site-packages'])
-	#~ else:
-		#~ loc=os.sep.join([sys.prefix, 'lib', 'python' + sys.version[:3], 'site-packages'])
-	#~ print loc
-	#distutils.file_util.copy_file('hotspotd.py','testo.py')

@@ -61,11 +61,11 @@ The first time you run hotspotd, it will ask you for configuration values for SS
 	* If the above output includes “mac80211” then it means your wifi card will support the AP mode.	
 
 #Testing status
-This package has been tested on:
+This package has been tested on Qualcomm Atheros adapter AR9285 (ath9k) on the following distros:
 * Ubuntu 12.04 LTS
 * Ubuntu 14.04 LTS
 
-In theory, it should work on other distros too, but you will have to try that and tell me!
+In theory, it should work with all other distros too (on machines having wifi adapters supported by hostapd), but you will have to try that out and tell me!
 
 #Notes
 * Replace `sudo` with `su` or `su -c` if you manage superuser access in that manner.
