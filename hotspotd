@@ -2,4 +2,4 @@
 #@author: Prahlad Yeri
 #@description: Small daemon to create a wifi hotspot on linux
 #@license: MIT
-python -m hotspotd.hotspotd $*
+python -m hotspotd $*
