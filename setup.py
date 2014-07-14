@@ -27,17 +27,17 @@ def uninstall_parts(package):
 		print 'Removing files from ' + loc
 		shutil.rmtree(loc,ignore_errors=False)
 		
-	if os.path.exists('/usr/local/bin/hotspotd'):
-		print 'Removing file: /usr/local/bin/hotspotd'
-		try: shutil.remove('/usr/local/bin/hotspotd')
+	if os.path.exists('/usr/local/bin/' + package):
+		print 'Removing file: /usr/local/bin/' + package
+		try: shutil.remove('/usr/local/bin/' + package)
 		except: pass
-	if os.path.exists('/usr/bin/hotspotd'):
-		print 'Removing file: /usr/bin/hotspotd'
-		try: shutil.remove('/usr/bin/hotspotd')
+	if os.path.exists('/usr/bin/' + package):
+		print 'Removing file: /usr/bin/' + package
+		try: shutil.remove('/usr/bin/' + package)
 		except: pass
-	if os.path.islink('/usr/bin/hotspotd'):
-		print 'Removing link: /usr/bin/hotspotd'
-		try: shutil.remove('/usr/bin/hotspotd')
+	if os.path.islink('/usr/bin/' + package):
+		print 'Removing link: /usr/bin/' + package
+		try: shutil.remove('/usr/bin/' + package)
 		except: pass
 	
 	#binary
