@@ -279,23 +279,15 @@ def stop_router():
 	print 'hotspot has stopped.'
 	return
 
-if __name__ == "__main__":
+def main(args):
 	global wlan, ppp, IP, Netmask
 
-	#check root or not
-	if os.getenv('USER') != 'root':
-		print "You need root permissions to do this, sloth!"
-		sys.exit(1)
 		
 	scpath = os.path.realpath(__file__)
 	realdir = os.path.dirname(scpath)
 	os.chdir(realdir)
 	#print 'changed directory to ' + os.path.dirname(scpath)
 	#if an instance is already running, then quit
-	parser = argparse.ArgumentParser(description='A small daemon to create a wifi hotspot on linux')
-	parser.add_argument('-v', '--verbose', required=False, action='store_true')
-	parser.add_argument('command', choices=['start', 'stop', 'configure'])
-	args = parser.parse_args()
 	#const.verbose = args.verbose
 	#const.command = args.command
 	#const.blocking = args.blocking
@@ -324,3 +316,4 @@ if __name__ == "__main__":
 			print 'hotspot is already running.'
 		else:
 			start_router()
+

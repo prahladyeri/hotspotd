@@ -2,6 +2,6 @@
 __init__.py
 cli.py
 hotspotd
-hotspotd.py
+main.py
 run.dat
 setup.py
