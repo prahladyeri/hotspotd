@@ -29,15 +29,15 @@ def uninstall_parts(package):
 		
 	if os.path.exists('/usr/local/bin/' + package):
 		print 'Removing file: /usr/local/bin/' + package
-		try: shutil.remove('/usr/local/bin/' + package)
+		try: os.remove('/usr/local/bin/' + package)
 		except: pass
 	if os.path.exists('/usr/bin/' + package):
 		print 'Removing file: /usr/bin/' + package
-		try: shutil.remove('/usr/bin/' + package)
+		try: os.remove('/usr/bin/' + package)
 		except: pass
 	if os.path.islink('/usr/bin/' + package):
 		print 'Removing link: /usr/bin/' + package
-		try: shutil.remove('/usr/bin/' + package)
+		try: os.remove('/usr/bin/' + package)
 		except: pass
 	
 	#binary
