@@ -18,9 +18,9 @@ Or on RHEL based distros:
 #Installation
 To install hotspotd, just follow these steps:
 ```
-wget https://github.com/prahladyeri/hotspotd/raw/master/dist/hotspotd-0.1.tar.gz
+wget https://github.com/prahladyeri/hotspotd/raw/master/dist/hotspotd-0.1.4.tar.gz
 tar xvf hotspotd-0.1.4.tar.gz
-cd hotspotd-0.1/
+cd hotspotd-0.1.4/
 sudo python setup.py install
 ```
 
