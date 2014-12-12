@@ -9,6 +9,7 @@ import cli
 import json
 import socket
 import platform
+import time
 
 class Proto:
 	pass
@@ -298,7 +299,9 @@ def main(args):
 	if not os.path.exists('hotspotd.json'):
 		configure()
 		newconfig=True
-
+	if len(cli.check_sysfile('hostapd'))==0:
+		print "hostapd is not installed on your system.This package will not work without it.To install it, try 'sudo apt-get install hostapd' or http://wireless.kernel.org/en/users/Documentation/hostapd after this installation gets over."
+		time.sleep(2) 
 	dc =json.load(open('hotspotd.json'))
 	wlan = dc['wlan']
 	ppp = dc['inet']
