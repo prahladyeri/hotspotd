@@ -154,14 +154,15 @@ def check_interfaces():
 		
 def pre_start():
 	try:
-		oper = platform.linux_distribution()
-		if oper[0].lower()=='ubuntu' and oper[2].lower()=='trusty':
+		#oper = platform.linux_distribution()
+		#if oper[0].lower()=='ubuntu' and oper[2].lower()=='trusty':
 			#trusty patch
-			print 'applying hostapd workaround for ubuntu trusty.'
-			cli.execute_shell('nmcli nm wifi off')
-			cli.execute_shell('rfkill unblock wlan')
-			cli.execute_shell('sleep 1')
-			print 'done.'
+		#29-12-2014: Rather than patching individual distros, lets make it a default.
+		print 'applying hostapd workaround for ubuntu trusty.'
+		cli.execute_shell('nmcli nm wifi off')
+		cli.execute_shell('rfkill unblock wlan')
+		cli.execute_shell('sleep 1')
+		print 'done.'
 	except:
 		pass
 
