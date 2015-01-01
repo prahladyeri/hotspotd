@@ -160,7 +160,7 @@ def pre_start():
 			# trusty patch
 		# print 'applying hostapd workaround for ubuntu trusty.'
 		#29-12-2014: Rather than patching individual distros, lets make it a default.
-		result = cli.execute_shell('nmcli radio wifi radio off')
+		result = cli.execute_shell('nmcli radio wifi off')
 		if "error" in result.lower():
 			cli.execute_shell('nmcli nm wifi off')
 		cli.execute_shell('rfkill unblock wlan')
