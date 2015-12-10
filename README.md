@@ -3,6 +3,19 @@
 
 Hotspotd works by creating a virtual NAT (Network address transation) table between your connected device and the internet using linux *iptables*.
 
+#Installation
+To install hotspotd, just follow these steps:
+```
+wget https://github.com/prahladyeri/hotspotd/raw/master/dist/hotspotd-latest.tar.gz
+tar xvf hotspotd-latest.tar.gz
+cd hotspotd-latest/
+sudo python setup.py install
+```
+
+To uninstall hotspotd, just say:
+
+```sudo python setup.py uninstall```
+
 #Dependencies
  * *dnsmasq* (typically pre-installed on most linux distributions)
  * *hostapd* for AP provisioning
@@ -14,19 +27,6 @@ To install hostapd on ubuntu:
 Or on RHEL based distros:
 
 ```yum install hostapd```
-
-#Installation
-To install hotspotd, just follow these steps:
-```
-wget https://github.com/prahladyeri/hotspotd/raw/master/dist/hotspotd-0.1.4.tar.gz
-tar xvf hotspotd-0.1.4.tar.gz
-cd hotspotd-0.1.4/
-sudo python setup.py install
-```
-
-To uninstall hotspotd, just say:
-
-```sudo python setup.py uninstall```
 
 #Usage
 
