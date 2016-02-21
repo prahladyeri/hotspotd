@@ -222,6 +222,7 @@ def start_router():
 	#start dnsmasq
 	s = 'dnsmasq --dhcp-authoritative --interface=' + wlan + ' --dhcp-range=' + ipparts + '.20,' + ipparts +'.100,' + Netmask + ',4h'
 	print 'running dnsmasq'
+	print s
 	r = cli.execute_shell(s)
 	cli.writelog(r)
 	
@@ -239,6 +240,7 @@ def start_router():
 	#start hostapd
 	#s = 'hostapd -B ' + os.path.abspath('run.conf')
 	s = 'hostapd -B ' + os.getcwd() + '/run.conf'
+	print s
 	cli.writelog('running hostapd')
 	#cli.writelog('sleeping for 2 seconds.')
 	cli.writelog('wait..')	

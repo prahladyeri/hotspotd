@@ -51,7 +51,7 @@ if 'uninstall' in sys.argv:
 #INSTALL IT
 from distutils.core import setup
 s = setup(name='hotspotd',
-	version='0.1.5',
+	version='0.1.6',
 	description='Small daemon to create a wifi hotspot on linux',
 	license='MIT',
 	author='Prahlad Yeri',
