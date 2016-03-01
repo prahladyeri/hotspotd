@@ -1,0 +1,5 @@
+== Hotspotd 0.1.7 ==
+
+1. Added HISTORY and VERSION files for tracking.
+2. Changed labelling on startup screen. 
+3. Added .gitignore file.

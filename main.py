@@ -9,6 +9,7 @@ import cli
 import json
 import socket
 import platform
+import datetime
 import time
 
 class Proto:
@@ -111,7 +112,7 @@ def configure():
 	dc = {'wlan': wlan, 'inet':ppp, 'ip':IP, 'netmask':Netmask, 'SSID':SSID, 'password':password}
 	json.dump(dc, open('hotspotd.json','wb'))
 	print dc
-	print 'Configuration saved'
+	print 'Configuration saved. Run "hotspotd start" to start the router.'
 	
 	#CHECK WIFI DRIVERS AND ISSUE WARNINGS
 	
@@ -287,8 +288,14 @@ def stop_router():
 
 def main(args):
 	global wlan, ppp, IP, Netmask
-
-		
+	the_version = open("VERSION").read().strip()
+	print "****"
+	print "Hotspotd " + the_version
+	print "A simple daemon to create wifi hotspot on Linux!"
+	print "****"
+	print "Copyright (c) 2014-2016"
+	print "Prahlad Yeri<prahladyeri@yahoo.com>\n"
+	
 	scpath = os.path.realpath(__file__)
 	realdir = os.path.dirname(scpath)
 	os.chdir(realdir)
@@ -305,7 +312,7 @@ def main(args):
 		configure()
 		newconfig=True
 	if len(cli.check_sysfile('hostapd'))==0:
-		print "hostapd is not installed on your system.This package will not work without it.To install it, try 'sudo apt-get install hostapd' or http://wireless.kernel.org/en/users/Documentation/hostapd after this installation gets over."
+		print "hostapd is not installed on your system. This package will not work without it.\nTo install hostapd, run 'sudo apt-get install hostapd'\nor refer to http://wireless.kernel.org/en/users/Documentation/hostapd after this installation gets over."
 		time.sleep(2) 
 	dc =json.load(open('hotspotd.json'))
 	wlan = dc['wlan']
