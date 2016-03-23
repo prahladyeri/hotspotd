@@ -21,7 +21,6 @@ __version__ = '0.2.0'
 
 
 class Hotspotd(object):
-
     def __init__(self, wlan=None, inet=None, ip='192.168.45.1', netmask='255.255.255.0',
                  ssid='hotspod', password='12345678', verbose=False):
 
@@ -43,7 +42,9 @@ class Hotspotd(object):
         self.logger.addHandler(handler)
 
     def start(self, free=False):
+        # Try to free wireless
         if free:
+            # !!! STOP ALL WIRELESS INTERFACES
             try:
                 result = execute_shell('nmcli radio wifi off')
                 if "error" in result.lower():
@@ -54,7 +55,14 @@ class Hotspotd(object):
             except:
                 pass
 
-        self.apply()
+        # Prepare hostapd configuration file
+        f = open('run.dat', 'r')
+        lout = [line.replace('<SSID>', self.ssid).replace('<PASS>', self.password).replace('<WIFI>', self.wlan) for line
+                in f.readlines()]
+        f.close()
+        with open('run.conf', 'w') as f:
+            f.writelines(lout)
+        print('created hostapd configuration: run.conf')
 
         s = 'ifconfig ' + self.wlan + ' up ' + self.ip + ' netmask ' + self.netmask
         print('using interface: ' + self.wlan + ' on IP: ' + self.ip)
@@ -81,17 +89,16 @@ class Hotspotd(object):
         # print r.strip()
 
         # enable forwarding in iptables.
-        print('creating NAT using iptables: %s <--> %s' % (self.wlan , self.inet))
+        print('creating NAT using iptables: %s <--> %s' % (self.wlan, self.inet))
         execute_shell('iptables -P FORWARD ACCEPT')
 
         # add iptables rules to create the NAT.
         execute_shell('iptables --table nat --delete-chain')
         execute_shell('iptables --table nat -F')
-        r = execute_shell('iptables --table nat -X')
-        if len(r.strip()) > 0: print r.strip()
-        execute_shell('iptables -t nat -A POSTROUTING -o ' + self.inet + ' -j MASQUERADE')
+        execute_shell('iptables --table nat -X')
+        execute_shell('iptables -t nat -A POSTROUTING -o %s -j MASQUERADE' % self.inet)
         execute_shell(
-            'iptables -A FORWARD -i ' + self.inet + ' -o ' + self.wlan + ' -j ACCEPT -m state --state RELATED,ESTABLISHED')
+            'iptables -A FORWARD -i %s -o %s -j ACCEPT -m state --state RELATED,ESTABLISHED' % (self.inet, self.wlan))
         execute_shell('iptables -A FORWARD -i ' + self.wlan + ' -o ' + self.inet + ' -j ACCEPT')
 
         # allow traffic to/from wlan
@@ -101,23 +108,21 @@ class Hotspotd(object):
         # start dnsmasq
         s = 'dnsmasq --dhcp-authoritative --interface=' + self.wlan + ' --dhcp-range=' + ipparts + '.20,' + ipparts + '.100,' + self.netmask + ',4h'
         print('running dnsmasq: %s' % s)
-        r = execute_shell(s)
+        execute_shell(s)
         s = 'hostapd -B ' + os.getcwd() + '/run.conf'
         print(s)
         execute_shell('sleep 2')
-        r = execute_shell(s)
+        execute_shell(s)
         print('hotspot is running.')
 
     def stop(self):
         # bring down the interface
         execute_shell('ifconfig ' + self.wlan + ' down')
 
-        # TODO: Find some workaround. killing hostapd brings down the wlan0 interface in ifconfig.
-        # ~ #stop hostapd
+        # stop hostapd
         if is_process_running('hostapd') > 0:
             print('stopping hostapd')
             execute_shell('killall -9 hostapd')
-            # execute_shell('pkill hostapd')
 
         # stop dnsmasq
         if is_process_running('dnsmasq') > 0:
@@ -134,32 +139,19 @@ class Hotspotd(object):
         execute_shell('iptables --table nat --delete-chain')
         execute_shell('iptables --table nat -F')
         execute_shell('iptables --table nat -X')
+
         # disable forwarding in sysctl.
         print('disabling forward in sysctl.')
-        r = set_sysctl('net.ipv4.ip_forward', '0')
-        # print r.strip()
+        set_sysctl('net.ipv4.ip_forward', '0')
         # execute_shell('ifconfig ' + self.wlan + ' down'  + IP + ' netmask ' + Netmask)
         # execute_shell('ip addr flush ' + self.wlan)
-        print 'hotspot has stopped.'
+        print('hotspot has stopped.')
         return
-
-    def apply(self, filename=None):
-        f = open('run.dat', 'r')
-        lout = []
-        for line in f.readlines():
-            lout.append(line.replace('<SSID>', self.ssid).replace('<PASS>', self.password).replace('<WIFI>', self.wlan))
-
-        f.close()
-        f = open('run.conf', 'w')
-        f.writelines(lout)
-        f.close()
-
-        print('created hostapd configuration: run.conf')
 
     def save(self, filename=None):
         fname = self.config_file if filename is None else filename
-        dc = {'wlan': self.wlan, 'inet': self.inet, 'ip': self.ip, 'netmask': self.netmask, 'ssid': self.ssid, 'password': self.password}
-        # print(dc)
+        dc = {'wlan': self.wlan, 'inet': self.inet, 'ip': self.ip, 'netmask': self.netmask, 'ssid': self.ssid,
+              'password': self.password}
         json.dump(dc, open(fname, 'wb'))
         print('Configuration saved. Run "hotspotd start" to start the router.')
 
@@ -245,6 +237,8 @@ def get_interfaces_dict():
     struct_size = 40 if is_64bits else 32
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     max_possible = 8  # initial value
+    names = ''
+    outbytes = 0
     while True:
         _bytes = max_possible * struct_size
         names = array.array('B')
@@ -268,9 +262,13 @@ def get_interfaces_dict():
     return ifaces
 
 
+def get_iface_list():
+    return [x for (x, y) in get_interfaces_dict().items()]
+
+
 def get_auto_wifi_interface():
     wifi_interfaces = get_ifaces_names(True)
-    net_interfaces = map(lambda (x,y): x, get_interfaces_dict().items())
+    net_interfaces = map(lambda (x, y): x, get_interfaces_dict().items())
     for wifi in wifi_interfaces:
         if wifi not in net_interfaces:
             return wifi
@@ -283,7 +281,7 @@ def get_default_iface():
     with open(route) as f:
         for line in f.readlines():
             try:
-                iface, dest, _, flags, _, _, _, _, _, _, _, =  line.strip().split()
+                iface, dest, _, flags, _, _, _, _, _, _, _, = line.strip().split()
                 if dest != '00000000' or not int(flags, 16) & 2:
                     continue
                 return iface
@@ -291,10 +289,6 @@ def get_default_iface():
                 continue
 
     return None
-
-
-def get_iface_list():
-    return [x for (x,y) in get_interfaces_dict().items()]
 
 
 def get_ifaces_names(wireless=False):
@@ -342,12 +336,15 @@ def validate_password(ctx, param, value):
 
 
 @cli.command()
-@click.option('-W', '--wlan', prompt='WiFi interface to use for AP', callback=validate_wifi, default=get_auto_wifi_interface())
-@click.option('-I', '--inet', prompt='Network interface connected to Internet', callback=validate_inet, default=get_default_iface())
+@click.option('-W', '--wlan', prompt='WiFi interface to use for AP', callback=validate_wifi,
+              default=get_auto_wifi_interface())
+@click.option('-I', '--inet', prompt='Network interface connected to Internet', callback=validate_inet,
+              default=get_default_iface())
 @click.option('-i', '--ip', prompt='Access point IP address', callback=validate_ip, default='192.168.45.1')
 @click.option('-m', '--netmask', prompt='Netmask for network', callback=validate_ip, default='255.255.255.0')
 @click.option('-s', '--ssid', prompt='WiFi access point SSID', default='hostapd')
-@click.option('-p', '--password', prompt='WiFi password', hide_input=True, confirmation_prompt=True, callback=validate_password, default='12345678')
+@click.option('-p', '--password', prompt='WiFi password', hide_input=True, confirmation_prompt=True,
+              callback=validate_password, default='12345678')
 @click.pass_context
 def configure(ctx, wlan, inet, ip, netmask, ssid, password):
     '''Configure Hotspotd'''
