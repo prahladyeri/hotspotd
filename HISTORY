@@ -1,3 +1,12 @@
+== Hotspotd 0.2.0 ==
+
+1. Rewritten to use Click library
+2. All code moved to hotspotd.py file
+3. Interfaces automatic selection algorithm changed
+4. New configuration file location /etc/hotspotd.json
+5. setup.py rewritten from scratch to use setuptools instead of distutis
+
+
 == Hotspotd 0.1.7 ==
 
 1. Added HISTORY and VERSION files for tracking.
