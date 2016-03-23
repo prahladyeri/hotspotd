@@ -31,7 +31,6 @@ class Hotspotd(object):
         self.netmask = netmask
         self.ssid = ssid
         self.password = password
-        # self.config_file = os.path.abspath(os.path.join(os.path.expanduser("~"), '.hotspotd'))
         self.config_file = '/etc/hotspotd.json'
         print('Hotspotd conf file: %s' % self.config_file)
 
@@ -105,12 +104,8 @@ class Hotspotd(object):
         r = execute_shell(s)
         s = 'hostapd -B ' + os.getcwd() + '/run.conf'
         print(s)
-        # writelog('running hostapd')
-        # writelog('sleeping for 2 seconds.')
-        # writelog('wait..')
         execute_shell('sleep 2')
         r = execute_shell(s)
-        # writelog(r)
         print('hotspot is running.')
 
     def stop(self):
@@ -308,33 +303,6 @@ def get_ifaces_names(wireless=False):
     return os.listdir('/sys/class/net')
 
 
-def menu_select(items, caption=None):
-    is_valid = 0
-    while not is_valid:
-        print (30 * '-')
-        if caption is not None:
-            print ("  "*10 + caption)
-            print (30 * '-')
-
-        for i in range(0, len(items)):
-            print ("%i. %s" % (i+1, items[i]))
-
-        print (30 * '-')
-
-        try:
-            choice = int(raw_input('Enter your choice [1-%i] : ' % (len(items))))
-            is_valid = 1
-        except ValueError, e:
-            print ("'%s' is not a valid integer." % e.args[0].split(": ")[1])
-            continue
-
-        if choice < 1 or choice > len(items):
-            print ("Invalid number. Try again...")
-            continue
-
-        return items[choice-1]
-
-
 @click.group()
 @click.option('--debug/--no-debug', help='Enable debug output', default=False)
 @click.pass_context
@@ -379,7 +347,7 @@ def validate_password(ctx, param, value):
 @click.option('-i', '--ip', prompt='Access point IP address', callback=validate_ip, default='192.168.45.1')
 @click.option('-m', '--netmask', prompt='Netmask for network', callback=validate_ip, default='255.255.255.0')
 @click.option('-s', '--ssid', prompt='WiFi access point SSID', default='hostapd')
-@click.option('--password', prompt='WiFi password', hide_input=True, confirmation_prompt=True, callback=validate_password, default='12345678')
+@click.option('-p', '--password', prompt='WiFi password', hide_input=True, confirmation_prompt=True, callback=validate_password, default='12345678')
 @click.pass_context
 def configure(ctx, wlan, inet, ip, netmask, ssid, password):
     '''Configure Hotspotd'''
