@@ -1,5 +1,5 @@
 #sets the wifi interface to use, is wlan0 in most cases
-interface=wlan0
+interface=<WIFI>
 #driver to use, nl80211 works in most cases
 driver=nl80211
 #sets the ssid of the virtual wifi access point
