@@ -298,7 +298,7 @@ def get_ifaces_names(wireless=False):
 
 
 @click.group()
-@click.option('--debug/--no-debug', help='Enable debug output', default=False)
+@click.option('--debug', help='Enable debug output', is_flag=True)
 @click.pass_context
 def cli(ctx, debug):
     ctx.obj = {}
@@ -348,7 +348,7 @@ def validate_password(ctx, param, value):
 @click.pass_context
 def configure(ctx, wlan, inet, ip, netmask, ssid, password):
     '''Configure Hotspotd'''
-    click.echo('Debug is %s' % (ctx.obj['DEBUG'] and 'on' or 'off'))
+    # click.echo('Debug is %s' % (ctx.obj['DEBUG'] and 'on' or 'off'))
     h = Hotspotd(wlan, inet, ip, netmask, ssid, password)
     h.save()
 
@@ -357,7 +357,7 @@ def configure(ctx, wlan, inet, ip, netmask, ssid, password):
 @click.pass_context
 def start(ctx):
     '''Start hotspotd'''
-    click.echo('Debug is %s' % (ctx.obj['DEBUG'] and 'on' or 'off'))
+    # click.echo('Debug is %s' % (ctx.obj['DEBUG'] and 'on' or 'off'))
     h = Hotspotd()
     click.echo('Loading configuration')
     h.load()
@@ -369,7 +369,7 @@ def start(ctx):
 @click.pass_context
 def stop(ctx):
     '''Stop Hotspotd'''
-    click.echo('Debug is %s' % (ctx.obj['DEBUG'] and 'on' or 'off'))
+    # click.echo('Debug is %s' % (ctx.obj['DEBUG'] and 'on' or 'off'))
     h = Hotspotd()
     h.load()
     h.stop()
