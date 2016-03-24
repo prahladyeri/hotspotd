@@ -14,6 +14,7 @@ import socket
 import struct
 import subprocess
 import sys
+import time
 import click
 
 __license__ = 'MIT'
@@ -44,32 +45,28 @@ class Hotspotd(object):
     def start(self, free=False):
         # Try to free wireless
         if free:
-            # !!! STOP ALL WIRELESS INTERFACES
+            # ATTENTION!!! STOP ALL WIRELESS INTERFACES
             try:
                 result = execute_shell('nmcli radio wifi off')
                 if "error" in result.lower():
                     execute_shell('nmcli nm wifi off')
                 execute_shell('rfkill unblock wlan')
-                execute_shell('sleep 1')
+                time.sleep(1)
                 print 'done.'
             except:
                 pass
 
         # Prepare hostapd configuration file
-        f = open('run.dat', 'r')
-        lout = [line.replace('<SSID>', self.ssid).replace('<PASS>', self.password).replace('<WIFI>', self.wlan) for line
-                in f.readlines()]
-        f.close()
+        config_text = open('run.dat', 'r').read().replace('<PASS>', self.password).replace('<WIFI>', self.wlan)
         with open('run.conf', 'w') as f:
-            f.writelines(lout)
+            f.write(config_text)
         print('created hostapd configuration: run.conf')
 
-        s = 'ifconfig ' + self.wlan + ' up ' + self.ip + ' netmask ' + self.netmask
         print('using interface: ' + self.wlan + ' on IP: ' + self.ip)
-        r = execute_shell(s)
-        print('sleeping for 2 seconds.')
+        execute_shell('ifconfig ' + self.wlan + ' up ' + self.ip + ' netmask ' + self.netmask)
 
-        execute_shell('sleep 2')
+        # Split IP to partss
+        time.sleep(2)
         i = self.ip.rindex('.')
         ipparts = self.ip[0:i]
 
@@ -85,8 +82,7 @@ class Hotspotd(object):
 
         # enable forwarding in sysctl.
         print('enabling forward in sysctl.')
-        r = set_sysctl('net.ipv4.ip_forward', '1')
-        # print r.strip()
+        set_sysctl('net.ipv4.ip_forward', '1')
 
         # enable forwarding in iptables.
         print('creating NAT using iptables: %s <--> %s' % (self.wlan, self.inet))
@@ -111,7 +107,7 @@ class Hotspotd(object):
         execute_shell(s)
         s = 'hostapd -B ' + os.getcwd() + '/run.conf'
         print(s)
-        execute_shell('sleep 2')
+        time.sleep(2)
         execute_shell(s)
         print('hotspot is running.')
 
@@ -146,7 +142,6 @@ class Hotspotd(object):
         # execute_shell('ifconfig ' + self.wlan + ' down'  + IP + ' netmask ' + Netmask)
         # execute_shell('ip addr flush ' + self.wlan)
         print('hotspot has stopped.')
-        return
 
     def save(self, filename=None):
         fname = self.config_file if filename is None else filename
@@ -348,7 +343,6 @@ def validate_password(ctx, param, value):
 @click.pass_context
 def configure(ctx, wlan, inet, ip, netmask, ssid, password):
     '''Configure Hotspotd'''
-    # click.echo('Debug is %s' % (ctx.obj['DEBUG'] and 'on' or 'off'))
     h = Hotspotd(wlan, inet, ip, netmask, ssid, password)
     h.save()
 
@@ -357,7 +351,6 @@ def configure(ctx, wlan, inet, ip, netmask, ssid, password):
 @click.pass_context
 def start(ctx):
     '''Start hotspotd'''
-    # click.echo('Debug is %s' % (ctx.obj['DEBUG'] and 'on' or 'off'))
     h = Hotspotd()
     click.echo('Loading configuration')
     h.load()
@@ -369,9 +362,8 @@ def start(ctx):
 @click.pass_context
 def stop(ctx):
     '''Stop Hotspotd'''
-    # click.echo('Debug is %s' % (ctx.obj['DEBUG'] and 'on' or 'off'))
     h = Hotspotd()
-    h.load()
+    # h.load()
     h.stop()
 
 
