@@ -44,15 +44,40 @@ class Hotspotd(object):
             logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%d.%m.%Y %H:%M:%S'))
         self.logger.addHandler(handler)
 
+    def execute(self, command='', errorstring='', wait=True, shellexec=False, ags=None):
+        try:
+            if shellexec:
+                p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                self.logger.debug('command: ' + command)
+            else:
+                p = subprocess.Popen(args=ags)
+                self.logger.debug('command: ' + ags[0])
+
+            if wait:
+                p.wait()
+                result = get_stdout(p)
+                return result
+            else:
+                self.logger.debug('not waiting')
+                return p
+        except subprocess.CalledProcessError as e:
+            self.logger.error('error occured:' + errorstring)
+            return errorstring
+        except Exception as ea:
+            self.logger.error('Exception occured:' + ea.message)
+            return errorstring
+
+    def execute_shell(self, command, error=''):
+        return self.execute(command, wait=True, shellexec=True, errorstring=error)
     def start(self, free=False):
         # Try to free wireless
         if free:
             # ATTENTION!!! STOP ALL WIRELESS INTERFACES
             try:
-                result = execute_shell('nmcli radio wifi off')
+                result = self.execute_shell('nmcli radio wifi off')
                 if "error" in result.lower():
-                    execute_shell('nmcli nm wifi off')
-                execute_shell('rfkill unblock wlan')
+                    self.execute_shell('nmcli nm wifi off')
+                self.execute_shell('rfkill unblock wlan')
                 time.sleep(1)
                 print('done.')
             except:
@@ -66,9 +91,9 @@ class Hotspotd(object):
 
 
         print('using interface: %s on IP: %s MAC: %s' % (self.wlan, self.ip, self.mac))
-        execute_shell('ifconfig ' + self.wlan + ' down')
+        self.execute_shell('ifconfig ' + self.wlan + ' down')
         set_interface_mac(self.wlan, self.mac)
-        execute_shell('ifconfig ' + self.wlan + ' up ' + self.ip + ' netmask ' + self.netmask)
+        self.execute_shell('ifconfig ' + self.wlan + ' up ' + self.ip + ' netmask ' + self.netmask)
 
 
         # Split IP to partss
@@ -77,76 +102,100 @@ class Hotspotd(object):
         ipparts = self.ip[0:i]
 
         # stop dnsmasq if already running.
-        if is_process_running('dnsmasq') > 0:
+        if self.is_process_running('dnsmasq') > 0:
             print('stopping dnsmasq')
-            execute_shell('killall dnsmasq')
+            self.execute_shell('killall dnsmasq')
 
         # stop hostapd if already running.
-        if is_process_running('hostapd') > 0:
+        if self.is_process_running('hostapd') > 0:
             print('stopping hostapd')
-            execute_shell('killall -9 hostapd')
+            self.execute_shell('killall -9 hostapd')
 
         # enable forwarding in sysctl.
         print('enabling forward in sysctl.')
-        set_sysctl('net.ipv4.ip_forward', '1')
+        self.set_sysctl('net.ipv4.ip_forward', '1')
 
         # enable forwarding in iptables.
         print('creating NAT using iptables: %s <--> %s' % (self.wlan, self.inet))
-        execute_shell('iptables -P FORWARD ACCEPT')
+        self.execute_shell('iptables -P FORWARD ACCEPT')
 
         # add iptables rules to create the NAT.
-        execute_shell('iptables --table nat --delete-chain')
-        execute_shell('iptables --table nat -F')
-        execute_shell('iptables --table nat -X')
-        execute_shell('iptables -t nat -A POSTROUTING -o %s -j MASQUERADE' % self.inet)
-        execute_shell(
+        self.execute_shell('iptables --table nat --delete-chain')
+        self.execute_shell('iptables --table nat -F')
+        self.execute_shell('iptables --table nat -X')
+        self.execute_shell('iptables -t nat -A POSTROUTING -o %s -j MASQUERADE' % self.inet)
+        self.execute_shell(
             'iptables -A FORWARD -i %s -o %s -j ACCEPT -m state --state RELATED,ESTABLISHED' % (self.inet, self.wlan))
-        execute_shell('iptables -A FORWARD -i ' + self.wlan + ' -o ' + self.inet + ' -j ACCEPT')
+        self.execute_shell('iptables -A FORWARD -i ' + self.wlan + ' -o ' + self.inet + ' -j ACCEPT')
 
         # allow traffic to/from wlan
-        execute_shell('iptables -A OUTPUT --out-interface ' + self.inet + ' -j ACCEPT')
-        execute_shell('iptables -A INPUT --in-interface ' + self.wlan + ' -j ACCEPT')
+        self.execute_shell('iptables -A OUTPUT --out-interface ' + self.inet + ' -j ACCEPT')
+        self.execute_shell('iptables -A INPUT --in-interface ' + self.wlan + ' -j ACCEPT')
 
         # start dnsmasq
         s = 'dnsmasq --dhcp-authoritative --interface=' + self.wlan + ' --dhcp-range=' + ipparts + '.20,' + ipparts + '.100,' + self.netmask + ',4h'
         print('running dnsmasq: %s' % s)
-        execute_shell(s)
+        self.execute_shell(s)
         s = 'hostapd -B ' + os.getcwd() + '/run.conf'
         print(s)
         time.sleep(2)
-        execute_shell(s)
+        self.execute_shell(s)
         print('hotspot is running.')
+
+    def killall(self, process):
+        cnt = 0
+        pid = self.is_process_running(process)
+        while pid != 0:
+            self.execute_shell('kill ' + str(pid))
+            pid = self.is_process_running(process)
+            cnt += 1
+        return cnt
+
+
+    def is_process_running(self, name):
+        s = self.execute_shell('ps aux |grep ' + name + ' |grep -v grep')
+        return 0 if len(s) == 0 else int(s.split()[1])
+        # return ''
+
+
+    def get_sysctl(self, setting):
+        result = self.execute_shell('sysctl ' + setting)
+        return result.split('=')[1].lstrip() if '=' in result else result
+
+
+    def set_sysctl(self, setting, value):
+        return self.execute_shell('sysctl -w ' + setting + '=' + value)
 
     def stop(self):
         # bring down the interface
-        execute_shell('ifconfig ' + self.wlan + ' down')
+        self.execute_shell('ifconfig ' + self.wlan + ' down')
 
         # stop hostapd
-        if is_process_running('hostapd') > 0:
+        if self.is_process_running('hostapd') > 0:
             print('stopping hostapd')
-            execute_shell('killall -9 hostapd')
+            self.execute_shell('killall -9 hostapd')
 
         # stop dnsmasq
-        if is_process_running('dnsmasq') > 0:
+        if self.is_process_running('dnsmasq') > 0:
             print('stopping dnsmasq')
-            execute_shell('killall dnsmasq')
+            self.execute_shell('killall dnsmasq')
 
         # disable forwarding in iptables.
         print('disabling forward rules in iptables.')
-        execute_shell('iptables -P FORWARD DROP')
+        self.execute_shell('iptables -P FORWARD DROP')
 
         # delete iptables rules that were added for wlan traffic.
-        execute_shell('iptables -D OUTPUT --out-interface ' + self.wlan + ' -j ACCEPT')
-        execute_shell('iptables -D INPUT --in-interface ' + self.wlan + ' -j ACCEPT')
-        execute_shell('iptables --table nat --delete-chain')
-        execute_shell('iptables --table nat -F')
-        execute_shell('iptables --table nat -X')
+        self.execute_shell('iptables -D OUTPUT --out-interface ' + self.wlan + ' -j ACCEPT')
+        self.execute_shell('iptables -D INPUT --in-interface ' + self.wlan + ' -j ACCEPT')
+        self.execute_shell('iptables --table nat --delete-chain')
+        self.execute_shell('iptables --table nat -F')
+        self.execute_shell('iptables --table nat -X')
 
         # disable forwarding in sysctl.
         print('disabling forward in sysctl.')
-        set_sysctl('net.ipv4.ip_forward', '0')
-        # execute_shell('ifconfig ' + self.wlan + ' down'  + IP + ' netmask ' + Netmask)
-        # execute_shell('ip addr flush ' + self.wlan)
+        self.set_sysctl('net.ipv4.ip_forward', '0')
+        # self.execute_shell('ifconfig ' + self.wlan + ' down'  + IP + ' netmask ' + Netmask)
+        # self.execute_shell('ip addr flush ' + self.wlan)
         print('hotspot has stopped.')
 
     def save(self, filename=None):
@@ -167,60 +216,9 @@ class Hotspotd(object):
         self.password = dc['password']
 
 
-SIOCGIFCONF = 0x8912
-SIOCGIFADDR = 0x8915
-SIOCGIFBRDADDR = 0x8919
-SIOCSIFHWADDR = 0x8927
-SIOCGIFNETMASK = 0x891b
-SIOCGIFDSTADDR = 0x8917
-
-
-def execute(command='', errorstring='', wait=True, shellexec=False, ags=None):
-    try:
-        if shellexec:
-            p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            # self.logger.debug('command: ' + command)
-        else:
-            p = subprocess.Popen(args=ags)
-            # self.logger.debug('command: ' + ags[0])
-
-        if wait:
-            p.wait()
-            result = get_stdout(p)
-            return result
-        else:
-            # self.logger.debug('not waiting')
-            return p
-    except subprocess.CalledProcessError as e:
-        # self.logger.error('error occured:' + errorstring)
-        return errorstring
-    except Exception as ea:
-        # self.logger.error('Exception occured:' + ea.message)
-        return errorstring
-
-
-def execute_shell(command, error=''):
-    return execute(command, wait=True, shellexec=True, errorstring=error)
-
-
 def get_stdout(pi):
     result = pi.communicate()
     return result[0] if len(result[0]) > 0 else result[1]
-
-
-def killall(self, process):
-    cnt = 0
-    pid = is_process_running(process)
-    while pid != 0:
-        self.execute_shell('kill ' + str(pid))
-        pid = is_process_running(process)
-        cnt += 1
-    return cnt
-
-
-def is_process_running(name):
-    s = execute_shell('ps aux |grep ' + name + ' |grep -v grep')
-    return 0 if len(s) == 0 else int(s.split()[1])
 
 
 def check_sysfile(filename):
@@ -231,14 +229,12 @@ def check_sysfile(filename):
     else:
         return ''
 
-
-def get_sysctl(setting):
-    result = execute_shell('sysctl ' + setting)
-    return result.split('=')[1].lstrip() if '=' in result else result
-
-
-def set_sysctl(setting, value):
-    return execute_shell('sysctl -w ' + setting + '=' + value)
+SIOCGIFCONF = 0x8912
+SIOCGIFADDR = 0x8915
+SIOCGIFBRDADDR = 0x8919
+SIOCSIFHWADDR = 0x8927
+SIOCGIFNETMASK = 0x891b
+SIOCGIFDSTADDR = 0x8917
 
 
 def get_interfaces_dict():
@@ -320,6 +316,7 @@ def set_interface_mac(interface, newmac):
     ifreq = struct.pack('16sH6B8x', interface, socket.AF_UNIX, *macbytes)
     fcntl.ioctl(sockfd, SIOCSIFHWADDR, ifreq)
 
+
 @click.group()
 @click.option('--debug', help='Enable debug output', is_flag=True)
 @click.pass_context
@@ -342,7 +339,7 @@ def validate_ip(ctx, param, value):
 
 def validate_inet(ctx, param, value):
     if value not in get_iface_list():
-        raise click.BadParameter('Non valid IP address')
+        raise click.BadParameter('Non valid inet interface')
     return value
 
 
@@ -359,9 +356,9 @@ def validate_password(ctx, param, value):
 
 
 def validate_mac(ctx, param, value):
-    if not re.match("[0-9a-f]{2}([-:])[0-9a-f]{2}(\\1[0-9a-f]{2}){4}$", param.lower()):
+    if not re.match("[0-9a-f]{2}([-:])[0-9a-f]{2}(\\1[0-9a-f]{2}){4}$", value.lower()):
         raise click.BadParameter('Non valid MAC address')
-    return value
+    return value.lower()
 
 
 @cli.command()
