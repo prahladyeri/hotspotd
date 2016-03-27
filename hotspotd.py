@@ -15,6 +15,7 @@ import struct
 import subprocess
 import sys
 import time
+import re
 import click
 
 __license__ = 'MIT'
@@ -22,13 +23,14 @@ __version__ = '0.2.0'
 
 
 class Hotspotd(object):
-    def __init__(self, wlan=None, inet=None, ip='192.168.45.1', netmask='255.255.255.0',
+    def __init__(self, wlan=None, inet=None, ip='192.168.45.1', netmask='255.255.255.0', mac='00:de:ad:be:ef:00',
                  ssid='hotspod', password='12345678', verbose=False):
 
         self.wlan = wlan
         self.inet = inet
         self.ip = ip
         self.netmask = netmask
+        self.mac = mac
         self.ssid = ssid
         self.password = password
         self.config_file = '/etc/hotspotd.json'
@@ -62,8 +64,12 @@ class Hotspotd(object):
             f.write(config_text)
         print('created hostapd configuration: run.conf')
 
-        print('using interface: ' + self.wlan + ' on IP: ' + self.ip)
+
+        print('using interface: %s on IP: %s MAC: %s' % (self.wlan, self.ip, self.mac))
+        execute_shell('ifconfig ' + self.wlan + ' down')
+        set_interface_mac(self.wlan, self.mac)
         execute_shell('ifconfig ' + self.wlan + ' up ' + self.ip + ' netmask ' + self.netmask)
+
 
         # Split IP to partss
         time.sleep(2)
@@ -161,6 +167,14 @@ class Hotspotd(object):
         self.password = dc['password']
 
 
+SIOCGIFCONF = 0x8912
+SIOCGIFADDR = 0x8915
+SIOCGIFBRDADDR = 0x8919
+SIOCSIFHWADDR = 0x8927
+SIOCGIFNETMASK = 0x891b
+SIOCGIFDSTADDR = 0x8917
+
+
 def execute(command='', errorstring='', wait=True, shellexec=False, ags=None):
     try:
         if shellexec:
@@ -241,7 +255,7 @@ def get_interfaces_dict():
             names.append(0)
         outbytes = struct.unpack('iL', fcntl.ioctl(
             s.fileno(),
-            0x8912,  # SIOCGIFCONF
+            SIOCGIFCONF,
             struct.pack('iL', _bytes, names.buffer_info()[0])
         ))[0]
         if outbytes == _bytes:
@@ -292,6 +306,20 @@ def get_ifaces_names(wireless=False):
     return os.listdir('/sys/class/net')
 
 
+def get_interface_mac(ifname):
+    sockfd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM).fileno()
+    info = fcntl.ioctl(sockfd, SIOCSIFHWADDR,  struct.pack('256s', ifname[:15]))
+    return ':'.join(['%02x' % ord(char) for char in info[18:24]])
+
+
+def set_interface_mac(interface, newmac):
+    ''' Set the device's mac address. Device must be down for this to
+        succeed. '''
+    sockfd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM).fileno()
+    macbytes = [int(i, 16) for i in newmac.split(':')]
+    ifreq = struct.pack('16sH6B8x', interface, socket.AF_UNIX, *macbytes)
+    fcntl.ioctl(sockfd, SIOCSIFHWADDR, ifreq)
+
 @click.group()
 @click.option('--debug', help='Enable debug output', is_flag=True)
 @click.pass_context
@@ -309,18 +337,18 @@ def validate_ip(ctx, param, value):
         socket.inet_aton(value)
         return value
     except socket.error:
-        raise click.BadParameter('non valid IP address')
+        raise click.BadParameter('Non valid IP address')
 
 
 def validate_inet(ctx, param, value):
     if value not in get_iface_list():
-        raise click.BadParameter('non valid IP address')
+        raise click.BadParameter('Non valid IP address')
     return value
 
 
 def validate_wifi(ctx, param, value):
     if value not in get_ifaces_names(True):
-        raise click.BadParameter('non valid wireless interface')
+        raise click.BadParameter('Non valid wireless interface')
     return value
 
 
@@ -330,13 +358,20 @@ def validate_password(ctx, param, value):
     return value
 
 
+def validate_mac(ctx, param, value):
+    if not re.match("[0-9a-f]{2}([-:])[0-9a-f]{2}(\\1[0-9a-f]{2}){4}$", param.lower()):
+        raise click.BadParameter('Non valid MAC address')
+    return value
+
+
 @cli.command()
 @click.option('-W', '--wlan', prompt='WiFi interface to use for AP', callback=validate_wifi,
               default=get_auto_wifi_interface())
 @click.option('-I', '--inet', prompt='Network interface connected to Internet', callback=validate_inet,
               default=get_default_iface())
 @click.option('-i', '--ip', prompt='Access point IP address', callback=validate_ip, default='192.168.45.1')
-@click.option('-m', '--netmask', prompt='Netmask for network', callback=validate_ip, default='255.255.255.0')
+@click.option('-n', '--netmask', prompt='Netmask for network', callback=validate_ip, default='255.255.255.0')
+@click.option('-m', '--mac', prompt='WiFi interface MAC address', callback=validate_mac, default=get_interface_mac(get_auto_wifi_interface()))
 @click.option('-s', '--ssid', prompt='WiFi access point SSID', default='hostapd')
 @click.option('-p', '--password', prompt='WiFi password', hide_input=True, confirmation_prompt=True,
               callback=validate_password, default='12345678')
@@ -363,7 +398,6 @@ def start(ctx):
 def stop(ctx):
     '''Stop Hotspotd'''
     h = Hotspotd()
-    # h.load()
     h.stop()
 
 

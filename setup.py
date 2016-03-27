@@ -3,13 +3,13 @@
 # @description: Small daemon to create a wifi hotspot on linux
 # @license: MIT
 from setuptools import setup, find_packages
-from hotspotd import __version__
+# from hotspotd import __version__
 
 setup(
     name='hotspotd',
     license='MIT',
     author='Prahlad Yeri',
-    version=__version__,
+    version='0.2.0',
     description='Small daemon to create a wifi hotspot on linux',
     py_modules=['hotspotd'],
     package_data={'hotspotd': ['run.dat']},
