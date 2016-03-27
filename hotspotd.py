@@ -1,8 +1,7 @@
 #!/usr/bin/env python2
-# @author: Prahlad Yeri
+# @authors: Prahlad Yeri, Oleg Kupreev
 # @description: Small daemon to create a wifi hotspot on linux
 # @license: MIT
-# python -m hotspotd $*
 
 import array
 import fcntl
