@@ -68,6 +68,7 @@ This package has been tested on Qualcomm Atheros adapter on the following distro
 
 * Ubuntu 12.04 LTS
 * Ubuntu 14.04 LTS
+* Arch Linux
 
 In theory, it should work with all other distros too (on machines having wifi adapters supported by hostapd), but you will have to try that out and tell me!
 

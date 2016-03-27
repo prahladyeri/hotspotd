@@ -3,8 +3,9 @@
 1. Rewritten to use Click library
 2. All code moved to hotspotd.py file
 3. Interfaces automatic selection algorithm changed
-4. New configuration file location /etc/hotspotd.json
-5. setup.py rewritten from scratch to use setuptools instead of distutis
+4. MAC address changing support
+5. New configuration file location /etc/hotspotd.json
+6. setup.py rewritten from scratch to use setuptools instead of distutis
 
 
 == Hotspotd 0.1.7 ==
