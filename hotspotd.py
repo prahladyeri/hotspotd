@@ -54,7 +54,7 @@ class Hotspotd(object):
                     execute_shell('nmcli nm wifi off')
                 execute_shell('rfkill unblock wlan')
                 time.sleep(1)
-                print 'done.'
+                print('done.')
             except:
                 pass
 
