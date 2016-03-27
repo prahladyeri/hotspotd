@@ -26,8 +26,8 @@ class Hotspotd(object):
     def __init__(self, wlan=None, inet=None, ip='192.168.45.1', netmask='255.255.255.0', mac='00:de:ad:be:ef:00',
                  ssid='hotspod', password='12345678', verbose=False):
 
-        self.wlan = wlan
-        self.inet = inet
+        self.wlan = str(wlan)
+        self.inet = str(inet)
         self.ip = ip
         self.netmask = netmask
         self.mac = mac
@@ -69,6 +69,7 @@ class Hotspotd(object):
 
     def execute_shell(self, command, error=''):
         return self.execute(command, wait=True, shellexec=True, errorstring=error)
+
     def start(self, free=False):
         # Try to free wireless
         if free:
@@ -151,17 +152,13 @@ class Hotspotd(object):
             cnt += 1
         return cnt
 
-
     def is_process_running(self, name):
         s = self.execute_shell('ps aux |grep ' + name + ' |grep -v grep')
         return 0 if len(s) == 0 else int(s.split()[1])
-        # return ''
-
 
     def get_sysctl(self, setting):
         result = self.execute_shell('sysctl ' + setting)
         return result.split('=')[1].lstrip() if '=' in result else result
-
 
     def set_sysctl(self, setting, value):
         return self.execute_shell('sysctl -w ' + setting + '=' + value)
@@ -200,8 +197,8 @@ class Hotspotd(object):
 
     def save(self, filename=None):
         fname = self.config_file if filename is None else filename
-        dc = {'wlan': self.wlan, 'inet': self.inet, 'ip': self.ip, 'netmask': self.netmask, 'ssid': self.ssid,
-              'password': self.password}
+        dc = {'wlan': self.wlan, 'inet': self.inet, 'ip': self.ip, 'netmask': self.netmask, 'mac': self.mac,
+              'ssid': self.ssid, 'password': self.password}
         json.dump(dc, open(fname, 'wb'))
         print('Configuration saved. Run "hotspotd start" to start the router.')
 
@@ -212,6 +209,7 @@ class Hotspotd(object):
         self.inet = dc['inet']
         self.ip = dc['ip']
         self.netmask = dc['netmask']
+        self.mac = dc['mac']
         self.ssid = dc['ssid']
         self.password = dc['password']
 
@@ -229,12 +227,18 @@ def check_sysfile(filename):
     else:
         return ''
 
+# From linux/sockios.h
 SIOCGIFCONF = 0x8912
+SIOCGIFINDEX = 0x8933
+SIOCGIFFLAGS = 0x8913
+SIOCSIFFLAGS = 0x8914
+SIOCGIFHWADDR = 0x8927
+SIOCSIFHWADDR = 0x8924
 SIOCGIFADDR = 0x8915
-SIOCGIFBRDADDR = 0x8919
-SIOCSIFHWADDR = 0x8927
-SIOCGIFNETMASK = 0x891b
-SIOCGIFDSTADDR = 0x8917
+SIOCSIFADDR = 0x8916
+SIOCGIFNETMASK = 0x891B
+SIOCSIFNETMASK = 0x891C
+SIOCETHTOOL = 0x8946
 
 
 def get_interfaces_dict():
@@ -276,7 +280,7 @@ def get_auto_wifi_interface():
     net_interfaces = map(lambda (x, y): x, get_interfaces_dict().items())
     for wifi in wifi_interfaces:
         if wifi not in net_interfaces:
-            return wifi
+            return str(wifi)
 
     return None
 
@@ -297,24 +301,33 @@ def get_default_iface():
 
 
 def get_ifaces_names(wireless=False):
-    if wireless:
-        return [f.split('/')[-2] for f in glob.glob("/sys/class/net/*/phy80211")]
-    return os.listdir('/sys/class/net')
+    return [f.split('/')[-2] for f in glob.glob("/sys/class/net/*/phy80211")] if wireless \
+            else os.listdir('/sys/class/net')
 
 
 def get_interface_mac(ifname):
-    sockfd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM).fileno()
-    info = fcntl.ioctl(sockfd, SIOCSIFHWADDR,  struct.pack('256s', ifname[:15]))
-    return ':'.join(['%02x' % ord(char) for char in info[18:24]])
+    if ifname is None:
+        return None
+        # return '00:de:ad:be:ef:00'
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    info = fcntl.ioctl(s.fileno(), SIOCGIFHWADDR,  struct.pack('256s', ifname[:15]))
+    s.close()
+    return ''.join(['%02x:' % ord(char) for char in info[18:24]])[:-1]
 
 
 def set_interface_mac(interface, newmac):
     ''' Set the device's mac address. Device must be down for this to
         succeed. '''
-    sockfd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM).fileno()
+    if interface is None or newmac is None:
+        return
+    print('Setting interface %s MAC address to %s' % (interface, newmac))
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sockfd = s.fileno()
     macbytes = [int(i, 16) for i in newmac.split(':')]
-    ifreq = struct.pack('16sH6B8x', interface, socket.AF_UNIX, *macbytes)
+    ifreq = struct.pack('16sH6B8x', str(interface), socket.AF_UNIX, *macbytes)
     fcntl.ioctl(sockfd, SIOCSIFHWADDR, ifreq)
+    fcntl.ioctl(s.fileno(), SIOCSIFHWADDR, ifreq)
+    s.close()
 
 
 @click.group()
@@ -368,14 +381,15 @@ def validate_mac(ctx, param, value):
               default=get_default_iface())
 @click.option('-i', '--ip', prompt='Access point IP address', callback=validate_ip, default='192.168.45.1')
 @click.option('-n', '--netmask', prompt='Netmask for network', callback=validate_ip, default='255.255.255.0')
-@click.option('-m', '--mac', prompt='WiFi interface MAC address', callback=validate_mac, default=get_interface_mac(get_auto_wifi_interface()))
+@click.option('-m', '--mac', prompt='WiFi interface MAC address', callback=validate_mac,
+              default=get_interface_mac(get_auto_wifi_interface()))
 @click.option('-s', '--ssid', prompt='WiFi access point SSID', default='hostapd')
 @click.option('-p', '--password', prompt='WiFi password', hide_input=True, confirmation_prompt=True,
               callback=validate_password, default='12345678')
 @click.pass_context
-def configure(ctx, wlan, inet, ip, netmask, ssid, password):
+def configure(ctx, wlan, inet, ip, netmask, mac, ssid, password):
     '''Configure Hotspotd'''
-    h = Hotspotd(wlan, inet, ip, netmask, ssid, password)
+    h = Hotspotd(wlan, inet, ip, netmask, mac, ssid, password)
     h.save()
 
 
@@ -395,6 +409,9 @@ def start(ctx):
 def stop(ctx):
     '''Stop Hotspotd'''
     h = Hotspotd()
+    click.echo('Loading configuration')
+    h.load()
+    click.echo('Stopping...')
     h.stop()
 
 
