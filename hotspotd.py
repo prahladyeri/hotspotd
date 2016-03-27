@@ -84,11 +84,11 @@ class Hotspotd(object):
                 pass
 
         # Prepare hostapd configuration file
-        config_text = open('run.dat', 'r').read().replace('<PASS>', self.password).replace('<WIFI>', self.wlan)
+        config_text = open('run.dat', 'r').read().\
+            replace('<PASS>', self.password).replace('<WIFI>', self.wlan).replace('<SSID>', self.ssid)
         with open('run.conf', 'w') as f:
             f.write(config_text)
         print('created hostapd configuration: run.conf')
-
 
         print('using interface: %s on IP: %s MAC: %s' % (self.wlan, self.ip, self.mac))
         self.execute_shell('ifconfig ' + self.wlan + ' down')
