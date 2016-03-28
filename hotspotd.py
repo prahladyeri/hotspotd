@@ -35,6 +35,8 @@ class Hotspotd(object):
         self.password = password
         self.config_file = '/etc/hotspotd.json'
         print('Hotspotd conf file: %s' % self.config_file)
+        self.hostapd_config = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'run.dat')
+        print('Hostapd configuration template: %s' % self.config_file)
 
         # Initialize logger
         self.logger = logging.getLogger(__name__)
@@ -85,11 +87,12 @@ class Hotspotd(object):
                 pass
 
         # Prepare hostapd configuration file
-        config_text = open('run.dat', 'r').read(). \
+        # config_text = open('run.dat', 'r').read(). \
+        config_text = open(self.hostapd_config, 'r').read(). \
             replace('<PASS>', self.password).replace('<WIFI>', self.wlan). \
             replace('<SSID>', self.ssid).replace('<CHANNEL>', str(self.channel))
 
-        with open('run.conf', 'w') as f:
+        with open('/tmp/run.conf', 'w') as f:
             f.write(config_text)
         print('created hostapd configuration: run.conf')
 
@@ -387,10 +390,8 @@ def set_interface_mac(interface, newmac):
     print('Setting interface %s MAC address to %s' % (interface, newmac))
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # sockfd = s.fileno()
         macbytes = [int(i, 16) for i in newmac.split(':')]
         ifreq = struct.pack('16sH6B8x', str(interface), socket.AF_UNIX, *macbytes)
-        # fcntl.ioctl(sockfd, SIOCSIFHWADDR, ifreq)
         fcntl.ioctl(s.fileno(), SIOCSIFHWADDR, ifreq)
         s.close()
     except:
