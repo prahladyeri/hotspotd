@@ -133,9 +133,8 @@ class Hotspotd(object):
                     driver=nl80211 #driver to use, nl80211 works in most cases
                     ssid=%s #sets the ssid of the virtual wifi access point
                     hw_mode=g #sets the mode of wifi, depends upon the devices you will be using. It can be a,b,g,n. Setting to g ensures backward compatiblity.
-                    channel=%s #sets the channel for your wifi
-                    #macaddr_acl sets options for mac address filtering. 0 means "accept unless in deny list"
-                    macaddr_acl=0
+                    channel=%i #sets the channel for your wifi
+                    macaddr_acl=0 #macaddr_acl sets options for mac address filtering. 0 means "accept unless in deny list"
                     ignore_broadcast_ssid=0 #setting ignore_broadcast_ssid to 1 will disable the broadcasting of ssid
                     auth_algs=1 #1 - only open system authentication /2 - both open system authentication and shared key authentication
                     wpa=3 #1 - wpa only /2 - wpa2 only /3 - both
@@ -213,11 +212,11 @@ class Hotspotd(object):
         self.execute_shell('iptables -t nat -A POSTROUTING -o %s -j MASQUERADE' % self.inet)
         self.execute_shell(
             'iptables -A FORWARD -i %s -o %s -j ACCEPT -m state --state RELATED,ESTABLISHED' % (self.inet, self.wlan))
-        self.execute_shell('iptables -A FORWARD -i ' + self.wlan + ' -o ' + self.inet + ' -j ACCEPT')
+        self.execute_shell('iptables -A FORWARD -i %s -o %s -j ACCEPT' % (self.wlan, self.inet))
 
         # allow traffic to/from wlan
-        self.execute_shell('iptables -A OUTPUT --out-interface ' + self.inet + ' -j ACCEPT')
-        self.execute_shell('iptables -A INPUT --in-interface ' + self.wlan + ' -j ACCEPT')
+        self.execute_shell('iptables -A OUTPUT --out-interface %s -j ACCEPT' % self.inet)
+        self.execute_shell('iptables -A INPUT --in-interface %s -j ACCEPT' % self.wlan)
 
         # start dnsmasq
         s = 'dnsmasq --dhcp-authoritative --interface=' + self.wlan + ' --dhcp-range=' + ipparts + '.20,' + ipparts + '.100,' + self.netmask + ',4h'
@@ -241,7 +240,6 @@ class Hotspotd(object):
         if self.is_process_running('hostapd') > 0:
             self.logger.info('stopping hostapd')
             self.execute_shell('killall -9 hostapd')
-        # self.execute_shell('ifconfig ' + self.wlan + ' up')
 
         # stop dnsmasq
         if self.is_process_running('dnsmasq') > 0:
@@ -262,8 +260,7 @@ class Hotspotd(object):
         # disable forwarding in sysctl.
         self.logger.info('disabling forward in sysctl.')
         self.set_sysctl('net.ipv4.ip_forward', '0')
-        # self.execute_shell('ifconfig ' + self.wlan + ' down'  + IP + ' netmask ' + Netmask)
-        # self.execute_shell('ip addr flush ' + self.wlan)
+
         self.logger.info('hotspot has stopped.')
 
         # Execute
@@ -297,15 +294,6 @@ class Hotspotd(object):
 def get_stdout(pi):
     result = pi.communicate()
     return result[0] if len(result[0]) > 0 else result[1]
-
-
-def check_sysfile(filename):
-    if os.path.exists('/usr/sbin/' + filename):
-        return '/usr/sbin/' + filename
-    elif os.path.exists('/sbin/' + filename):
-        return '/sbin/' + filename
-    else:
-        return ''
 
 
 # From linux/sockios.h
@@ -552,6 +540,15 @@ def stop(ctx):
     h = Hotspotd()
     h.load()
     h.stop()
+
+
+def check_sysfile(filename):
+    if os.path.exists('/usr/sbin/' + filename):
+        return '/usr/sbin/' + filename
+    elif os.path.exists('/sbin/' + filename):
+        return '/sbin/' + filename
+    else:
+        return ''
 
 
 @cli.command()
