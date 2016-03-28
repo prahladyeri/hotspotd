@@ -1,3 +1,8 @@
+== Hotspotd 0.2.1 ==
+
+1. Channel setting support
+2. Some bugfixes
+
 == Hotspotd 0.2.0 ==
 
 1. Rewritten to use Click library

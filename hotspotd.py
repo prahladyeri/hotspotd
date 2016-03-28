@@ -87,7 +87,6 @@ class Hotspotd(object):
                 pass
 
         # Prepare hostapd configuration file
-        # config_text = open('run.dat', 'r').read(). \
         config_text = open(self.hostapd_config, 'r').read(). \
             replace('<PASS>', self.password).replace('<WIFI>', self.wlan). \
             replace('<SSID>', self.ssid).replace('<CHANNEL>', str(self.channel))
@@ -100,8 +99,6 @@ class Hotspotd(object):
         self.execute_shell('ifconfig ' + self.wlan + ' down')
         set_interface_mac(self.wlan, self.mac)
         self.execute_shell('ifconfig ' + self.wlan + ' up ' + self.ip + ' netmask ' + self.netmask)
-        # set_channel(self.wlan, self.channel)
-        # self.execute_shell('iwconfig %s channel %s' % (self.wlan, self.channel))
 
         # Split IP to partss
         time.sleep(2)

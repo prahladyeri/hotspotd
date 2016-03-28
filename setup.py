@@ -8,7 +8,7 @@ setup(
     name='hotspotd',
     license='MIT',
     author='Prahlad Yeri',
-    version='0.2.0',
+    version='0.2.1',
     description='Small daemon to create a wifi hotspot on linux',
     py_modules=['hotspotd'],
     package_data={'hotspotd': ['run.dat']},
