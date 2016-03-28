@@ -513,6 +513,7 @@ def validate_exec(ctx, param, value):
     # TODO: add validation
     return value
 
+
 @cli.command()
 @click.option('-W', '--wlan', prompt='WiFi interface to use for AP', callback=validate_wlan,
               default=get_auto_wifi_interface())
