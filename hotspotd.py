@@ -36,7 +36,7 @@ class Hotspotd(object):
         self.config_file = '/etc/hotspotd.json'
         print('Hotspotd conf file: %s' % self.config_file)
         self.hostapd_config = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'run.dat')
-        print('Hostapd configuration template: %s' % self.config_file)
+        print('Hostapd configuration template: %s' % self.hostapd_config)
 
         # Initialize logger
         self.logger = logging.getLogger(__name__)
