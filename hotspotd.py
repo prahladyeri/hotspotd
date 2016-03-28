@@ -18,32 +18,36 @@ import re
 import click
 
 __license__ = 'MIT'
-__version__ = '0.2.0'
+__version__ = '0.2.3'
 
 
 class Hotspotd(object):
     def __init__(self,
                  wlan=None, inet=None,
                  ip='192.168.45.1', netmask='255.255.255.0', mac='00:de:ad:be:ef:00',
-                 channel=6, ssid='hotspod', password='12345678', verbose=False):
+                 channel=6, ssid='hotspod', password='12345678',
+                 start_exec=None, stop_exec=None,
+                 verbose=False):
 
+        # Network params
         self.wlan = str(wlan)
         self.inet = str(inet)
         self.ip = ip
         self.netmask = netmask
+
+        # AP params
         self.mac = mac
         self.channel = int(channel)
         self.ssid = ssid
         self.password = password
 
+        # Exec params
+        self.start_exec = start_exec
+        self.stop_exec = stop_exec
+
         # Config files
         self.config_files = {'hotspotd': '/etc/hotspotd.json',
-                             'template': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'run.dat'),
-                             'hostapd': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'run.conf')
-                             }
-        print('Config files:')
-        for k in self.config_files.keys():
-            print('\t%s\t%s' % (k, self.config_files[k]))
+                             'hostapd': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'run.conf')}
 
         # Initialize logger
         self.logger = logging.getLogger(__name__)
@@ -52,6 +56,11 @@ class Hotspotd(object):
         handler.setFormatter(
             logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%d.%m.%Y %H:%M:%S'))
         self.logger.addHandler(handler)
+
+        # Show current configuration files path
+        self.logger.info('Config files:')
+        for k in self.config_files.keys():
+            self.logger.info('\t%s\t%s' % (k, self.config_files[k]))
 
     def execute(self, command='', errorstring='', wait=True, shellexec=False, ags=None):
         try:
@@ -79,6 +88,68 @@ class Hotspotd(object):
     def execute_shell(self, command, error=''):
         return self.execute(command, wait=True, shellexec=True, errorstring=error)
 
+    def is_process_running(self, name):
+        s = self.execute_shell('ps aux |grep ' + name + ' |grep -v grep')
+        return 0 if len(s) == 0 else int(s.split()[1])
+
+    def get_sysctl(self, setting):
+        result = self.execute_shell('sysctl ' + setting)
+        return result.split('=')[1].lstrip() if '=' in result else result
+
+    def set_sysctl(self, setting, value):
+        return self.execute_shell('sysctl -w ' + setting + '=' + value)
+
+    def set_mac(self):
+        """ Set the device's mac address. Device must be down for this to
+            succeed. """
+        self.logger.info('Setting interface %s MAC address to %s' % (self.wlan, self.mac))
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            macbytes = [int(i, 16) for i in self.mac.split(':')]
+            ifreq = struct.pack('16sH6B8x', str(self.wlan), socket.AF_UNIX, *macbytes)
+            fcntl.ioctl(s.fileno(), SIOCSIFHWADDR, ifreq)
+            s.close()
+        except:
+            pass
+
+    def set_channel(self):
+        self.logger.info('Set %s channel %i' % (self.wlan, self.channel))
+        try:
+            st = struct.pack('16sihbb', str(self.wlan), self.channel, 0, 0, 0)
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            fcntl.ioctl(s.fileno(), SIOCSIWFREQ, st)
+            s.close()
+        except:
+            pass
+
+    def generate_hostapd_config(self):
+        # Generate text
+        if self.password == '':
+            text = "interface=%s\nssid=%s\nhw_mode=g\nchannel=%i\nauth_algs=1\nwmm_enabled=1\n" % \
+                   (self.wlan, self.ssid, self.channel)
+        else:
+            text = """
+                    interface=%s #sets the wifi interface to use, is wlan0 in most cases
+                    driver=nl80211 #driver to use, nl80211 works in most cases
+                    ssid=%s #sets the ssid of the virtual wifi access point
+                    hw_mode=g #sets the mode of wifi, depends upon the devices you will be using. It can be a,b,g,n. Setting to g ensures backward compatiblity.
+                    channel=%s #sets the channel for your wifi
+                    #macaddr_acl sets options for mac address filtering. 0 means "accept unless in deny list"
+                    macaddr_acl=0
+                    ignore_broadcast_ssid=0 #setting ignore_broadcast_ssid to 1 will disable the broadcasting of ssid
+                    auth_algs=1 #1 - only open system authentication /2 - both open system authentication and shared key authentication
+                    wpa=3 #1 - wpa only /2 - wpa2 only /3 - both
+                    wpa_passphrase=%s #sets wpa passphrase required by the clients to authenticate themselves on the network
+                    wpa_key_mgmt=WPA-PSK #sets wpa key management
+                    wpa_pairwise=TKIP #sets encryption used by WPA
+                    rsn_pairwise=CCMP #sets encryption used by WPA2
+                    """ % (self.wlan, self.ssid, self.channel, self.password)
+
+        # Write hostapd conf file
+        with open(self.config_files['hostapd'], 'w') as f:
+            f.write(text)
+            self.logger.info('created hostapd configuration: %s' % self.config_files['hostapd'])
+
     def start(self, free=False):
         # Check WiFi interfaces existence
         if self.wlan not in get_ifaces_names(True):
@@ -99,24 +170,18 @@ class Hotspotd(object):
                     self.execute_shell('nmcli nm wifi off')
                 self.execute_shell('rfkill unblock wlan')
                 time.sleep(1)
-                print('done.')
+                self.logger.info('done.')
             except:
                 pass
 
         # Prepare hostapd configuration file
-        config_text = open(self.config_files['template'], 'r').read(). \
-            replace('<PASS>', self.password).replace('<WIFI>', self.wlan). \
-            replace('<SSID>', self.ssid).replace('<CHANNEL>', str(self.channel))
+        self.generate_hostapd_config()
 
-        # Write hostapd conf file
-        with open(self.config_files['hostapd'], 'w') as f:
-            f.write(config_text)
-        print('created hostapd configuration: %s' % self.config_files['hostapd'])
-
-        print('using interface: %s on IP: %s MAC: %s' % (self.wlan, self.ip, self.mac))
+        # Prepare interface
+        self.logger.info('using interface: %s on IP: %s MAC: %s' % (self.wlan, self.ip, self.mac))
         self.execute_shell('ifconfig ' + self.wlan + ' down')
-        set_interface_mac(self.wlan, self.mac)
-        self.execute_shell('ifconfig ' + self.wlan + ' up ' + self.ip + ' netmask ' + self.netmask)
+        self.set_mac()
+        self.execute_shell('ifconfig %s up %s netmask %s' % (self.wlan, self.ip, self.netmask))
 
         # Split IP to partss
         time.sleep(2)
@@ -125,20 +190,20 @@ class Hotspotd(object):
 
         # stop dnsmasq if already running.
         if self.is_process_running('dnsmasq') > 0:
-            print('stopping dnsmasq')
+            self.logger.info('stopping dnsmasq')
             self.execute_shell('killall dnsmasq')
 
         # stop hostapd if already running.
         if self.is_process_running('hostapd') > 0:
-            print('stopping hostapd')
+            self.logger.info('stopping hostapd')
             self.execute_shell('killall -9 hostapd')
 
         # enable forwarding in sysctl.
-        print('enabling forward in sysctl.')
+        self.logger.info('enabling forward in sysctl.')
         self.set_sysctl('net.ipv4.ip_forward', '1')
 
         # enable forwarding in iptables.
-        print('creating NAT using iptables: %s <--> %s' % (self.wlan, self.inet))
+        self.logger.info('creating NAT using iptables: %s <--> %s' % (self.wlan, self.inet))
         self.execute_shell('iptables -P FORWARD ACCEPT')
 
         # add iptables rules to create the NAT.
@@ -156,24 +221,17 @@ class Hotspotd(object):
 
         # start dnsmasq
         s = 'dnsmasq --dhcp-authoritative --interface=' + self.wlan + ' --dhcp-range=' + ipparts + '.20,' + ipparts + '.100,' + self.netmask + ',4h'
-        print('running dnsmasq: %s' % s)
+        self.logger.info('running dnsmasq: %s' % s)
         self.execute_shell(s)
         s = 'hostapd -B %s' % self.config_files['hostapd']
-        print(s)
+        self.logger.info(s)
         time.sleep(2)
         self.execute_shell(s)
-        print('hotspot is running.')
+        self.logger.info('hotspot is running.')
 
-    def is_process_running(self, name):
-        s = self.execute_shell('ps aux |grep ' + name + ' |grep -v grep')
-        return 0 if len(s) == 0 else int(s.split()[1])
-
-    def get_sysctl(self, setting):
-        result = self.execute_shell('sysctl ' + setting)
-        return result.split('=')[1].lstrip() if '=' in result else result
-
-    def set_sysctl(self, setting, value):
-        return self.execute_shell('sysctl -w ' + setting + '=' + value)
+        # Execute
+        if self.start_exec != '':
+            self.execute(self.start_exec)
 
     def stop(self):
         # bring down the interface
@@ -181,16 +239,17 @@ class Hotspotd(object):
 
         # stop hostapd
         if self.is_process_running('hostapd') > 0:
-            print('stopping hostapd')
+            self.logger.info('stopping hostapd')
             self.execute_shell('killall -9 hostapd')
+        # self.execute_shell('ifconfig ' + self.wlan + ' up')
 
         # stop dnsmasq
         if self.is_process_running('dnsmasq') > 0:
-            print('stopping dnsmasq')
+            self.logger.info('stopping dnsmasq')
             self.execute_shell('killall dnsmasq')
 
         # disable forwarding in iptables.
-        print('disabling forward rules in iptables.')
+        self.logger.info('disabling forward rules in iptables.')
         self.execute_shell('iptables -P FORWARD DROP')
 
         # delete iptables rules that were added for wlan traffic.
@@ -201,19 +260,24 @@ class Hotspotd(object):
         self.execute_shell('iptables --table nat -X')
 
         # disable forwarding in sysctl.
-        print('disabling forward in sysctl.')
+        self.logger.info('disabling forward in sysctl.')
         self.set_sysctl('net.ipv4.ip_forward', '0')
         # self.execute_shell('ifconfig ' + self.wlan + ' down'  + IP + ' netmask ' + Netmask)
         # self.execute_shell('ip addr flush ' + self.wlan)
-        print('hotspot has stopped.')
+        self.logger.info('hotspot has stopped.')
+
+        # Execute
+        if self.stop_exec != '':
+            self.execute(self.stop_exec)
 
     def save(self, filename=None):
         fname = self.config_files['hotspotd'] if filename is None else filename
         dc = {'wlan': self.wlan, 'inet': self.inet, 'ip': self.ip, 'netmask': self.netmask, 'mac': self.mac,
               'channel': self.channel,
-              'ssid': self.ssid, 'password': self.password}
+              'ssid': self.ssid, 'password': self.password,
+              'start_exec': self.start_exec, 'stop_exec': self.stop_exec}
         json.dump(dc, open(fname, 'wb'))
-        print('Configuration saved. Run "hotspotd start" to start the router.')
+        self.logger.info('Configuration saved. Run "hotspotd start" to start the router.')
 
     def load(self, filename=None):
         fname = self.config_files['hotspotd'] if filename is None else filename
@@ -226,6 +290,8 @@ class Hotspotd(object):
         self.channel = dc['channel']
         self.ssid = dc['ssid']
         self.password = dc['password']
+        self.start_exec = dc['start_exec']
+        self.stop_exec = dc['stop_exec']
 
 
 def get_stdout(pi):
@@ -381,45 +447,11 @@ def get_ifaces_names(wireless=False):
 def get_interface_mac(ifname):
     if ifname is None:
         return None
-        # return '00:de:ad:be:ef:00'
+
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     info = fcntl.ioctl(s.fileno(), SIOCGIFHWADDR, struct.pack('256s', ifname[:15]))
     s.close()
     return ''.join(['%02x:' % ord(char) for char in info[18:24]])[:-1]
-
-
-def set_interface_mac(interface, newmac):
-    ''' Set the device's mac address. Device must be down for this to
-        succeed. '''
-    if interface is None or newmac is None:
-        return
-
-    print('Setting interface %s MAC address to %s' % (interface, newmac))
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        macbytes = [int(i, 16) for i in newmac.split(':')]
-        ifreq = struct.pack('16sH6B8x', str(interface), socket.AF_UNIX, *macbytes)
-        fcntl.ioctl(s.fileno(), SIOCSIFHWADDR, ifreq)
-        s.close()
-    except:
-        pass
-
-
-def set_channel(interface, channel):
-    if interface is None or channel is None:
-        return
-
-    if channel < 1 or channel > 13:
-        return
-
-    print('Set %s channel %i' % (interface, channel))
-    try:
-        st = struct.pack('16sihbb', str(interface), channel, 0, 0, 0)
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        fcntl.ioctl(s.fileno(), SIOCSIWFREQ, st)
-        s.close()
-    except:
-        pass
 
 
 @click.group()
@@ -428,7 +460,7 @@ def set_channel(interface, channel):
 def cli(ctx, debug):
     ctx.obj = {}
     if os.geteuid() != 0:
-        print("You need root permissions to do this, sloth!")
+        click.secho("You need root permissions to do this, sloth!", fg='red')
         sys.exit(1)
 
     ctx.obj['DEBUG'] = debug
@@ -455,7 +487,7 @@ def validate_wlan(ctx, param, value):
 
 
 def validate_password(ctx, param, value):
-    if len(value) < 8:
+    if 0 > len(value) < 8:
         raise click.BadParameter('WiFi password must be 8 chars length minimum')
     return value
 
@@ -477,6 +509,10 @@ def validate_channel(ctx, param, value):
     raise click.BadParameter('Non valid WiFi channel. Should be > 0 and < 15')
 
 
+def validate_exec(ctx, param, value):
+    # TODO: add validation
+    return value
+
 @cli.command()
 @click.option('-W', '--wlan', prompt='WiFi interface to use for AP', callback=validate_wlan,
               default=get_auto_wifi_interface())
@@ -487,20 +523,22 @@ def validate_channel(ctx, param, value):
 @click.option('-m', '--mac', prompt='WiFi interface MAC address', callback=validate_mac,
               default=get_interface_mac(get_auto_wifi_interface()))
 @click.option('-c', '--channel', prompt='WiFi channel to use for AP', default=6, type=int, callback=validate_channel)
-@click.option('-s', '--ssid', prompt='WiFi access point SSID', default='hostapd')
+@click.option('-s', '--ssid', prompt='WiFi access point SSID', default='MosMetro_Free')
 @click.option('-p', '--password', prompt='WiFi password', hide_input=True, confirmation_prompt=True,
-              callback=validate_password, default='12345678')
+              callback=validate_password, default='')
+@click.option('--start-exec', prompt='execute something on start', default='')
+@click.option('--stop-exec', prompt='execute something on stop', default='')
 @click.pass_context
-def configure(ctx, wlan, inet, ip, netmask, mac, channel, ssid, password):
-    '''Configure Hotspotd'''
-    h = Hotspotd(wlan, inet, ip, netmask, mac, channel, ssid, password)
+def configure(ctx, wlan, inet, ip, netmask, mac, channel, ssid, password, start_exec, stop_exec):
+    """Configure Hotspotd"""
+    h = Hotspotd(wlan, inet, ip, netmask, mac, channel, ssid, password, start_exec, stop_exec)
     h.save()
 
 
 @cli.command()
 @click.pass_context
 def start(ctx):
-    '''Start hotspotd'''
+    """Start hotspotd"""
     h = Hotspotd()
     h.load()
     h.start()
@@ -509,24 +547,23 @@ def start(ctx):
 @cli.command()
 @click.pass_context
 def stop(ctx):
-    '''Stop Hotspotd'''
+    """Stop Hotspotd"""
     h = Hotspotd()
-    click.echo('Loading configuration')
     h.load()
-    click.echo('Stopping...')
     h.stop()
 
 
 @cli.command()
 @click.pass_context
 def check(ctx):
-    '''Check dependencies: hostapd, dsmasq'''
+    """Check dependencies: hostapd, dsmasq"""
     if len(check_sysfile('hostapd')) == 0:
         click.secho('hostapd executable not found. Make sure you have installed hostapd.', fg='red')
 
     if len(check_sysfile('dnsmasq')) == 0:
         click.secho('dnsmasq executable not found. Make sure you have installed dnsmasq.', fg='red')
 
+    # TODO: add dependencies installation
     click.secho('All dependencies found 8).', fg='green')
 
 

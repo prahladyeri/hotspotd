@@ -1,3 +1,14 @@
+== Hotspotd 0.2.3 ==
+
+1. Support for OPEN auth for acces point by default
+2. Template file removed, config embedded to source code
+3. Now using logging insted of print where possible
+
+== Hotspotd 0.2.2 ==
+
+1. Program execution on start/stop addedd
+2. Some bugfixes
+
 == Hotspotd 0.2.1 ==
 
 1. Channel setting support
