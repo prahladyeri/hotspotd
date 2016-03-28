@@ -22,7 +22,9 @@ __version__ = '0.2.0'
 
 
 class Hotspotd(object):
-    def __init__(self, wlan=None, inet=None, ip='192.168.45.1', netmask='255.255.255.0', mac='00:de:ad:be:ef:00',
+    def __init__(self,
+                 wlan=None, inet=None,
+                 ip='192.168.45.1', netmask='255.255.255.0', mac='00:de:ad:be:ef:00',
                  channel=6, ssid='hotspod', password='12345678', verbose=False):
 
         self.wlan = str(wlan)
@@ -33,10 +35,15 @@ class Hotspotd(object):
         self.channel = int(channel)
         self.ssid = ssid
         self.password = password
-        self.config_file = '/etc/hotspotd.json'
-        print('Hotspotd conf file: %s' % self.config_file)
-        self.hostapd_config = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'run.dat')
-        print('Hostapd configuration template: %s' % self.hostapd_config)
+
+        # Config files
+        self.config_files = {'hotspotd': '/etc/hotspotd.json',
+                             'template': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'run.dat'),
+                             'hostapd': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'run.conf')
+                             }
+        print('Config files:')
+        for k in self.config_files.keys():
+            print('\t%s\t%s' % (k, self.config_files[k]))
 
         # Initialize logger
         self.logger = logging.getLogger(__name__)
@@ -62,7 +69,7 @@ class Hotspotd(object):
             else:
                 self.logger.debug('not waiting')
                 return p
-        except subprocess.CalledProcessError as e:
+        except subprocess.CalledProcessError:
             self.logger.error('error occured:' + errorstring)
             return errorstring
         except Exception as ea:
@@ -73,6 +80,16 @@ class Hotspotd(object):
         return self.execute(command, wait=True, shellexec=True, errorstring=error)
 
     def start(self, free=False):
+        # Check WiFi interfaces existence
+        if self.wlan not in get_ifaces_names(True):
+            click.secho("Wireless interface %s NOT found" % self.wlan, fg='red')
+            return
+
+        # Check Internet interface existence
+        if self.inet not in get_ifaces_names():
+            click.secho("Internet interface %s NOT found" % self.inet, fg='red')
+            return
+
         # Try to free wireless
         if free:
             # ATTENTION!!! STOP ALL WIRELESS INTERFACES
@@ -87,13 +104,14 @@ class Hotspotd(object):
                 pass
 
         # Prepare hostapd configuration file
-        config_text = open(self.hostapd_config, 'r').read(). \
+        config_text = open(self.config_files['template'], 'r').read(). \
             replace('<PASS>', self.password).replace('<WIFI>', self.wlan). \
             replace('<SSID>', self.ssid).replace('<CHANNEL>', str(self.channel))
 
-        with open('/tmp/run.conf', 'w') as f:
+        # Write hostapd conf file
+        with open(self.config_files['hostapd'], 'w') as f:
             f.write(config_text)
-        print('created hostapd configuration: run.conf')
+        print('created hostapd configuration: %s' % self.config_files['hostapd'])
 
         print('using interface: %s on IP: %s MAC: %s' % (self.wlan, self.ip, self.mac))
         self.execute_shell('ifconfig ' + self.wlan + ' down')
@@ -140,21 +158,11 @@ class Hotspotd(object):
         s = 'dnsmasq --dhcp-authoritative --interface=' + self.wlan + ' --dhcp-range=' + ipparts + '.20,' + ipparts + '.100,' + self.netmask + ',4h'
         print('running dnsmasq: %s' % s)
         self.execute_shell(s)
-        s = 'hostapd -B /tmp/run.conf'
-        # s = 'hostapd -B ' + os.getcwd() + '/run.conf'
+        s = 'hostapd -B %s' % self.config_files['hostapd']
         print(s)
         time.sleep(2)
         self.execute_shell(s)
         print('hotspot is running.')
-
-    def killall(self, process):
-        cnt = 0
-        pid = self.is_process_running(process)
-        while pid != 0:
-            self.execute_shell('kill ' + str(pid))
-            pid = self.is_process_running(process)
-            cnt += 1
-        return cnt
 
     def is_process_running(self, name):
         s = self.execute_shell('ps aux |grep ' + name + ' |grep -v grep')
@@ -200,14 +208,15 @@ class Hotspotd(object):
         print('hotspot has stopped.')
 
     def save(self, filename=None):
-        fname = self.config_file if filename is None else filename
-        dc = {'wlan': self.wlan, 'inet': self.inet, 'ip': self.ip, 'netmask': self.netmask, 'mac': self.mac, 'channel': self.channel,
+        fname = self.config_files['hotspotd'] if filename is None else filename
+        dc = {'wlan': self.wlan, 'inet': self.inet, 'ip': self.ip, 'netmask': self.netmask, 'mac': self.mac,
+              'channel': self.channel,
               'ssid': self.ssid, 'password': self.password}
         json.dump(dc, open(fname, 'wb'))
         print('Configuration saved. Run "hotspotd start" to start the router.')
 
     def load(self, filename=None):
-        fname = self.config_file if filename is None else filename
+        fname = self.config_files['hotspotd'] if filename is None else filename
         dc = json.load(open(fname, 'rb'))
         self.wlan = dc['wlan']
         self.inet = dc['inet']
@@ -493,9 +502,7 @@ def configure(ctx, wlan, inet, ip, netmask, mac, channel, ssid, password):
 def start(ctx):
     '''Start hotspotd'''
     h = Hotspotd()
-    click.echo('Loading configuration')
     h.load()
-    click.echo('Starting...')
     h.start()
 
 
