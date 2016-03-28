@@ -23,13 +23,14 @@ __version__ = '0.2.0'
 
 class Hotspotd(object):
     def __init__(self, wlan=None, inet=None, ip='192.168.45.1', netmask='255.255.255.0', mac='00:de:ad:be:ef:00',
-                 ssid='hotspod', password='12345678', verbose=False):
+                 channel=6, ssid='hotspod', password='12345678', verbose=False):
 
         self.wlan = str(wlan)
         self.inet = str(inet)
         self.ip = ip
         self.netmask = netmask
         self.mac = mac
+        self.channel = int(channel)
         self.ssid = ssid
         self.password = password
         self.config_file = '/etc/hotspotd.json'
@@ -84,8 +85,10 @@ class Hotspotd(object):
                 pass
 
         # Prepare hostapd configuration file
-        config_text = open('run.dat', 'r').read().\
-            replace('<PASS>', self.password).replace('<WIFI>', self.wlan).replace('<SSID>', self.ssid)
+        config_text = open('run.dat', 'r').read(). \
+            replace('<PASS>', self.password).replace('<WIFI>', self.wlan). \
+            replace('<SSID>', self.ssid).replace('<CHANNEL>', str(self.channel))
+
         with open('run.conf', 'w') as f:
             f.write(config_text)
         print('created hostapd configuration: run.conf')
@@ -94,7 +97,8 @@ class Hotspotd(object):
         self.execute_shell('ifconfig ' + self.wlan + ' down')
         set_interface_mac(self.wlan, self.mac)
         self.execute_shell('ifconfig ' + self.wlan + ' up ' + self.ip + ' netmask ' + self.netmask)
-
+        # set_channel(self.wlan, self.channel)
+        # self.execute_shell('iwconfig %s channel %s' % (self.wlan, self.channel))
 
         # Split IP to partss
         time.sleep(2)
@@ -196,7 +200,7 @@ class Hotspotd(object):
 
     def save(self, filename=None):
         fname = self.config_file if filename is None else filename
-        dc = {'wlan': self.wlan, 'inet': self.inet, 'ip': self.ip, 'netmask': self.netmask, 'mac': self.mac,
+        dc = {'wlan': self.wlan, 'inet': self.inet, 'ip': self.ip, 'netmask': self.netmask, 'mac': self.mac, 'channel': self.channel,
               'ssid': self.ssid, 'password': self.password}
         json.dump(dc, open(fname, 'wb'))
         print('Configuration saved. Run "hotspotd start" to start the router.')
@@ -209,6 +213,7 @@ class Hotspotd(object):
         self.ip = dc['ip']
         self.netmask = dc['netmask']
         self.mac = dc['mac']
+        self.channel = dc['channel']
         self.ssid = dc['ssid']
         self.password = dc['password']
 
@@ -226,6 +231,7 @@ def check_sysfile(filename):
     else:
         return ''
 
+
 # From linux/sockios.h
 SIOCGIFCONF = 0x8912
 SIOCGIFINDEX = 0x8933
@@ -238,6 +244,64 @@ SIOCSIFADDR = 0x8916
 SIOCGIFNETMASK = 0x891B
 SIOCSIFNETMASK = 0x891C
 SIOCETHTOOL = 0x8946
+# ioctl calls for the Linux/i386 kernel
+SIOCSIWCOMMIT = 0x8B00  # Commit pending changes to driver
+SIOCGIWNAME = 0x8B01  # get name == wireless protocol
+SIOCSIWNWID = 0x8B02  # set network id (pre-802.11)
+SIOCGIWNWID = 0x8B03  # get network id (the cell)
+SIOCSIWFREQ = 0x8B04  # set channel/frequency
+SIOCGIWFREQ = 0x8B05  # get channel/frequency
+SIOCSIWMODE = 0x8B06  # set the operation mode
+SIOCGIWMODE = 0x8B07  # get operation mode
+SIOCSIWSENS = 0x8B08  # set sensitivity (dBm)
+SIOCGIWSENS = 0x8B09  # get sensitivity
+SIOCSIWRANGE = 0x8B0A  # Unused
+SIOCGIWRANGE = 0x8B0B  # Get range of parameters
+SIOCSIWPRIV = 0x8B0C  # Unused
+SIOCGIWPRIV = 0x8B0D  # get private ioctl interface info
+SIOCSIWSTATS = 0x8B0E  # Unused
+SIOCGIWSTATS = 0x8B0F  # Get /proc/net/wireless stats
+SIOCSIWSPY = 0x8B10  # set spy addresses
+SIOCGIWSPY = 0x8B11  # get spy info (quality of link)
+SIOCSIWTHRSPY = 0x8B12  # set spy threshold (spy event)
+SIOCGIWTHRSPY = 0x8B13  # get spy threshold
+SIOCSIWAP = 0x8B14  # set AP MAC address
+SIOCGIWAP = 0x8B15  # get AP MAC addresss
+SIOCGIWAPLIST = 0x8B17  # Deprecated in favor of scanning
+SIOCSIWSCAN = 0x8B18  # set scanning off
+SIOCGIWSCAN = 0x8B19  # get scanning results
+SIOCSIWESSID = 0x8B1A  # set essid
+SIOCGIWESSID = 0x8B1B  # get essid
+SIOCSIWNICKN = 0x8B1C  # set node name/nickname
+SIOCGIWNICKN = 0x8B1D  # get node name/nickname
+SIOCSIWRATE = 0x8B20  # set default bit rate (bps)
+SIOCGIWRATE = 0x8B21  # get default bit rate (bps)
+SIOCSIWRTS = 0x8B22  # set RTS/CTS threshold (bytes)
+SIOCGIWRTS = 0x8B23  # get RTS/CTS threshold (bytes)
+SIOCSIWFRAG = 0x8B24  # set fragmentation thr (bytes)
+SIOCGIWFRAG = 0x8B25  # get fragmentation thr (bytes)
+SIOCSIWTXPOW = 0x8B26  # set transmit power (dBm)
+SIOCGIWTXPOW = 0x8B27  # get transmit power (dBm)
+SIOCSIWRETRY = 0x8B28  # set retry limits and lifetime
+SIOCGIWRETRY = 0x8B29  # get retry limits and lifetime
+SIOCSIWENCODE = 0x8B2A  # set encryption information
+SIOCGIWENCODE = 0x8B2B  # get encryption information
+SIOCSIWPOWER = 0x8B2C  # set Power Management settings
+SIOCGIWPOWER = 0x8B2D  # get power managment settings
+SIOCSIWMODUL = 0x8B2E  # set Modulations settings
+SIOCGIWMODUL = 0x8B2F  # get Modulations settings
+SIOCSIWGENIE = 0x8B30  # set generic IE
+SIOCGIWGENIE = 0x8B31  # get generic IE
+# WPA
+SIOCSIWMLME = 0x8B16  # request MLME operation; uses struct iw_mlme
+SIOCSIWAUTH = 0x8B32  # set authentication mode params
+SIOCGIWAUTH = 0x8B33  # get authentication mode params
+SIOCSIWENCODEEXT = 0x8B34  # set encoding token & mode
+SIOCGIWENCODEEXT = 0x8B35  # get encoding token & mode
+SIOCSIWPMKSA = 0x8B36  # PMKSA cache operation
+
+SIOCIWFIRST = 0x8B00  # FIRST ioctl identifier
+SIOCIWLAST = 0x8BFF  # LAST ioctl identifier
 
 
 def get_interfaces_dict():
@@ -301,7 +365,7 @@ def get_default_iface():
 
 def get_ifaces_names(wireless=False):
     return [f.split('/')[-2] for f in glob.glob("/sys/class/net/*/phy80211")] if wireless \
-            else os.listdir('/sys/class/net')
+        else os.listdir('/sys/class/net')
 
 
 def get_interface_mac(ifname):
@@ -309,7 +373,7 @@ def get_interface_mac(ifname):
         return None
         # return '00:de:ad:be:ef:00'
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    info = fcntl.ioctl(s.fileno(), SIOCGIFHWADDR,  struct.pack('256s', ifname[:15]))
+    info = fcntl.ioctl(s.fileno(), SIOCGIFHWADDR, struct.pack('256s', ifname[:15]))
     s.close()
     return ''.join(['%02x:' % ord(char) for char in info[18:24]])[:-1]
 
@@ -319,14 +383,35 @@ def set_interface_mac(interface, newmac):
         succeed. '''
     if interface is None or newmac is None:
         return
+
     print('Setting interface %s MAC address to %s' % (interface, newmac))
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sockfd = s.fileno()
-    macbytes = [int(i, 16) for i in newmac.split(':')]
-    ifreq = struct.pack('16sH6B8x', str(interface), socket.AF_UNIX, *macbytes)
-    fcntl.ioctl(sockfd, SIOCSIFHWADDR, ifreq)
-    fcntl.ioctl(s.fileno(), SIOCSIFHWADDR, ifreq)
-    s.close()
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # sockfd = s.fileno()
+        macbytes = [int(i, 16) for i in newmac.split(':')]
+        ifreq = struct.pack('16sH6B8x', str(interface), socket.AF_UNIX, *macbytes)
+        # fcntl.ioctl(sockfd, SIOCSIFHWADDR, ifreq)
+        fcntl.ioctl(s.fileno(), SIOCSIFHWADDR, ifreq)
+        s.close()
+    except:
+        pass
+
+
+def set_channel(interface, channel):
+    if interface is None or channel is None:
+        return
+
+    if channel < 1 or channel > 13:
+        return
+
+    print('Set %s channel %i' % (interface, channel))
+    try:
+        st = struct.pack('16sihbb', str(interface), channel, 0, 0, 0)
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        fcntl.ioctl(s.fileno(), SIOCSIWFREQ, st)
+        s.close()
+    except:
+        pass
 
 
 @click.group()
@@ -355,7 +440,7 @@ def validate_inet(ctx, param, value):
     return value
 
 
-def validate_wifi(ctx, param, value):
+def validate_wlan(ctx, param, value):
     if value not in get_ifaces_names(True):
         raise click.BadParameter('Non valid wireless interface')
     return value
@@ -373,8 +458,19 @@ def validate_mac(ctx, param, value):
     return value.lower()
 
 
+def validate_channel(ctx, param, value):
+    if not isinstance(value, int):
+        raise click.BadParameter('Non valid WiFi channel. Should be integer')
+
+    ival = int(value)
+    if 0 < ival < 15:
+        return ival
+
+    raise click.BadParameter('Non valid WiFi channel. Should be > 0 and < 15')
+
+
 @cli.command()
-@click.option('-W', '--wlan', prompt='WiFi interface to use for AP', callback=validate_wifi,
+@click.option('-W', '--wlan', prompt='WiFi interface to use for AP', callback=validate_wlan,
               default=get_auto_wifi_interface())
 @click.option('-I', '--inet', prompt='Network interface connected to Internet', callback=validate_inet,
               default=get_default_iface())
@@ -382,13 +478,14 @@ def validate_mac(ctx, param, value):
 @click.option('-n', '--netmask', prompt='Netmask for network', callback=validate_ip, default='255.255.255.0')
 @click.option('-m', '--mac', prompt='WiFi interface MAC address', callback=validate_mac,
               default=get_interface_mac(get_auto_wifi_interface()))
+@click.option('-c', '--channel', prompt='WiFi channel to use for AP', default=6, type=int, callback=validate_channel)
 @click.option('-s', '--ssid', prompt='WiFi access point SSID', default='hostapd')
 @click.option('-p', '--password', prompt='WiFi password', hide_input=True, confirmation_prompt=True,
               callback=validate_password, default='12345678')
 @click.pass_context
-def configure(ctx, wlan, inet, ip, netmask, mac, ssid, password):
+def configure(ctx, wlan, inet, ip, netmask, mac, channel, ssid, password):
     '''Configure Hotspotd'''
-    h = Hotspotd(wlan, inet, ip, netmask, mac, ssid, password)
+    h = Hotspotd(wlan, inet, ip, netmask, mac, channel, ssid, password)
     h.save()
 
 
