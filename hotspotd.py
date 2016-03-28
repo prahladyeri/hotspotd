@@ -140,7 +140,8 @@ class Hotspotd(object):
         s = 'dnsmasq --dhcp-authoritative --interface=' + self.wlan + ' --dhcp-range=' + ipparts + '.20,' + ipparts + '.100,' + self.netmask + ',4h'
         print('running dnsmasq: %s' % s)
         self.execute_shell(s)
-        s = 'hostapd -B ' + os.getcwd() + '/run.conf'
+        s = 'hostapd -B /tmp/run.conf'
+        # s = 'hostapd -B ' + os.getcwd() + '/run.conf'
         print(s)
         time.sleep(2)
         self.execute_shell(s)
