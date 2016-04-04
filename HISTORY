@@ -1,3 +1,8 @@
+== Hotspotd 0.2.4 ==
+
+1. Hidden SSID support
+2. Some bugfixes
+
 == Hotspotd 0.2.3 ==
 
 1. Support for OPEN auth for acces point by default

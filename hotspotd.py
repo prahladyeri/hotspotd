@@ -18,14 +18,14 @@ import re
 import click
 
 __license__ = 'MIT'
-__version__ = '0.2.3'
+__version__ = '0.2.4'
 
 
 class Hotspotd(object):
     def __init__(self,
                  wlan=None, inet=None,
                  ip='192.168.45.1', netmask='255.255.255.0', mac='00:de:ad:be:ef:00',
-                 channel=6, ssid='hotspod', password='12345678',
+                 channel=6, ssid='hotspod', password='12345678', hidden=False,
                  start_exec=None, stop_exec=None,
                  verbose=False):
 
@@ -40,6 +40,7 @@ class Hotspotd(object):
         self.channel = int(channel)
         self.ssid = ssid
         self.password = password
+        self.hidden = hidden
 
         # Exec params
         self.start_exec = start_exec
@@ -47,6 +48,7 @@ class Hotspotd(object):
 
         # Config files
         self.config_files = {'hotspotd': '/etc/hotspotd.json',
+                             # TODO: move config to separate folder?
                              'hostapd': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'run.conf')}
 
         # Initialize logger
@@ -100,8 +102,11 @@ class Hotspotd(object):
         return self.execute_shell('sysctl -w ' + setting + '=' + value)
 
     def set_mac(self):
-        """ Set the device's mac address. Device must be down for this to
-            succeed. """
+        """ Set the device's mac address. Device must be down for this to succeed. """
+        if self.mac is None:
+            self.logger.info('No MAC address to set')
+            return
+
         self.logger.info('Setting interface %s MAC address to %s' % (self.wlan, self.mac))
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -125,26 +130,17 @@ class Hotspotd(object):
     def generate_hostapd_config(self):
         # Generate text
         if self.password == '':
+            # OPN
             text = "interface=%s\nssid=%s\nhw_mode=g\nchannel=%i\nauth_algs=1\nwmm_enabled=1\n" % \
                    (self.wlan, self.ssid, self.channel)
         else:
-            text = """
-                    interface=%s #sets the wifi interface to use, is wlan0 in most cases
-                    driver=nl80211 #driver to use, nl80211 works in most cases
-                    ssid=%s #sets the ssid of the virtual wifi access point
-                    hw_mode=g #sets the mode of wifi, depends upon the devices you will be using. It can be a,b,g,n. Setting to g ensures backward compatiblity.
-                    channel=%i #sets the channel for your wifi
-                    macaddr_acl=0 #macaddr_acl sets options for mac address filtering. 0 means "accept unless in deny list"
-                    ignore_broadcast_ssid=0 #setting ignore_broadcast_ssid to 1 will disable the broadcasting of ssid
-                    auth_algs=1 #1 - only open system authentication /2 - both open system authentication and shared key authentication
-                    wpa=3 #1 - wpa only /2 - wpa2 only /3 - both
-                    wpa_passphrase=%s #sets wpa passphrase required by the clients to authenticate themselves on the network
-                    wpa_key_mgmt=WPA-PSK #sets wpa key management
-                    wpa_pairwise=TKIP #sets encryption used by WPA
-                    rsn_pairwise=CCMP #sets encryption used by WPA2
-                    """ % (self.wlan, self.ssid, self.channel, self.password)
+            # WPA2/PSK
+            text = "interface=%s\ndriver=nl80211\nssid=%s\nhw_mode=g\nchannel=%i\nmacaddr_acl=0\n" \
+                    "ignore_broadcast_ssid=%i\nauth_algs=1\nwpa=3\nwpa_passphrase=%s\n" \
+                    "wpa_key_mgmt=WPA-PSK\nwpa_pairwise=TKIP\nrsn_pairwise=CCMP\n" % \
+                   (self.wlan, self.ssid, self.channel, 1 if self.hidden else 0, self.password)
 
-        # Write hostapd conf file
+        # Save hostapd conf file
         with open(self.config_files['hostapd'], 'w') as f:
             f.write(text)
             self.logger.info('created hostapd configuration: %s' % self.config_files['hostapd'])
@@ -271,7 +267,7 @@ class Hotspotd(object):
         fname = self.config_files['hotspotd'] if filename is None else filename
         dc = {'wlan': self.wlan, 'inet': self.inet, 'ip': self.ip, 'netmask': self.netmask, 'mac': self.mac,
               'channel': self.channel,
-              'ssid': self.ssid, 'password': self.password,
+              'ssid': self.ssid, 'password': self.password, 'hidden': self.hidden,
               'start_exec': self.start_exec, 'stop_exec': self.stop_exec}
         json.dump(dc, open(fname, 'wb'))
         self.logger.info('Configuration saved. Run "hotspotd start" to start the router.')
@@ -281,14 +277,15 @@ class Hotspotd(object):
         dc = json.load(open(fname, 'rb'))
         self.wlan = dc['wlan']
         self.inet = dc['inet']
-        self.ip = dc['ip']
-        self.netmask = dc['netmask']
-        self.mac = dc['mac']
-        self.channel = dc['channel']
-        self.ssid = dc['ssid']
-        self.password = dc['password']
-        self.start_exec = dc['start_exec']
-        self.stop_exec = dc['stop_exec']
+        self.ip = dc['ip'] if 'ip' in dc else '192.168.45.1'
+        self.netmask = dc['netmask'] if 'netmask' in dc else '255.255.255.0'
+        self.mac = dc['mac'] if 'mac' in dc else None
+        self.channel = dc['channel'] if 'channel' in dc else 6
+        self.ssid = dc['ssid'] if 'ssid' in dc else 'hotspotd'
+        self.password = dc['password'] if 'password' in dc else ''
+        self.hidden = dc['hidden'] if 'hidden' in dc else False
+        self.start_exec = dc['start_exec'] if 'start_exec' in dc else None
+        self.stop_exec = dc['stop_exec'] if 'stop_exec' in dc else None
 
 
 def get_stdout(pi):
@@ -515,12 +512,13 @@ def validate_exec(ctx, param, value):
 @click.option('-s', '--ssid', prompt='WiFi access point SSID', default='MosMetro_Free')
 @click.option('-p', '--password', prompt='WiFi password', hide_input=True, confirmation_prompt=True,
               callback=validate_password, default='')
+@click.option('-H', '--hidden', is_flag=True, prompt='Hidden SSID')
 @click.option('--start-exec', prompt='execute something on start', default='')
 @click.option('--stop-exec', prompt='execute something on stop', default='')
 @click.pass_context
-def configure(ctx, wlan, inet, ip, netmask, mac, channel, ssid, password, start_exec, stop_exec):
+def configure(ctx, wlan, inet, ip, netmask, mac, channel, ssid, password, hidden, start_exec, stop_exec):
     """Configure Hotspotd"""
-    h = Hotspotd(wlan, inet, ip, netmask, mac, channel, ssid, password, start_exec, stop_exec)
+    h = Hotspotd(wlan, inet, ip, netmask, mac, channel, ssid, password, hidden, start_exec, stop_exec)
     h.save()
 
 
