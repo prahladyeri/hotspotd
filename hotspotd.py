@@ -18,7 +18,7 @@ import re
 import click
 
 __license__ = 'MIT'
-__version__ = '0.2.4'
+__version__ = '0.2.5'
 
 
 class Hotspotd(object):
@@ -222,11 +222,13 @@ class Hotspotd(object):
         self.logger.info(s)
         time.sleep(2)
         self.execute_shell(s)
-        self.logger.info('hotspot is running.')
 
         # Execute
         if self.start_exec != '':
-            self.execute(self.start_exec)
+            self.logger.info('Executing: %s' % self.start_exec)
+            subprocess.Popen(self.start_exec, shell=True, stdout=subprocess.PIPE)
+
+        self.logger.info('hotspot is running.')
 
     def stop(self):
         # bring down the interface
@@ -257,24 +259,31 @@ class Hotspotd(object):
         self.logger.info('disabling forward in sysctl.')
         self.set_sysctl('net.ipv4.ip_forward', '0')
 
-        self.logger.info('hotspot has stopped.')
-
         # Execute
         if self.stop_exec != '':
-            self.execute(self.stop_exec)
+            self.logger.info('Executing: %s' % self.stop_exec)
+            subprocess.Popen(self.stop_exec, shell=True, stdout=subprocess.PIPE)
+
+        self.logger.info('hotspot has stopped.')
 
     def save(self, filename=None):
         fname = self.config_files['hotspotd'] if filename is None else filename
+
         dc = {'wlan': self.wlan, 'inet': self.inet, 'ip': self.ip, 'netmask': self.netmask, 'mac': self.mac,
               'channel': self.channel,
               'ssid': self.ssid, 'password': self.password, 'hidden': self.hidden,
               'start_exec': self.start_exec, 'stop_exec': self.stop_exec}
         json.dump(dc, open(fname, 'wb'))
-        self.logger.info('Configuration saved. Run "hotspotd start" to start the router.')
+
+        self.logger.info('Configuration saved to %s. Run "hotspotd start" to start the router.' % fname)
 
     def load(self, filename=None):
+        # Read configuration file
         fname = self.config_files['hotspotd'] if filename is None else filename
+        self.logger.info('Loading configuration from %s' % fname)
         dc = json.load(open(fname, 'rb'))
+
+        # Load variables
         self.wlan = dc['wlan']
         self.inet = dc['inet']
         self.ip = dc['ip'] if 'ip' in dc else '192.168.45.1'
@@ -440,15 +449,17 @@ def get_interface_mac(ifname):
 
 
 @click.group()
+@click.option('-C', '--config', help='Config file location', type=click.Path(), default='/etc/hotspotd.json')
 @click.option('--debug', help='Enable debug output', is_flag=True)
 @click.pass_context
-def cli(ctx, debug):
+def cli(ctx, config, debug):
     ctx.obj = {}
     if os.geteuid() != 0:
         click.secho("You need root permissions to do this, sloth!", fg='red')
         sys.exit(1)
 
     ctx.obj['DEBUG'] = debug
+    ctx.obj['CONFIG'] = config
 
 
 def validate_ip(ctx, param, value):
@@ -519,7 +530,7 @@ def validate_exec(ctx, param, value):
 def configure(ctx, wlan, inet, ip, netmask, mac, channel, ssid, password, hidden, start_exec, stop_exec):
     """Configure Hotspotd"""
     h = Hotspotd(wlan, inet, ip, netmask, mac, channel, ssid, password, hidden, start_exec, stop_exec)
-    h.save()
+    h.save(ctx.obj['CONFIG'])
 
 
 @cli.command()
@@ -527,7 +538,7 @@ def configure(ctx, wlan, inet, ip, netmask, mac, channel, ssid, password, hidden
 def start(ctx):
     """Start hotspotd"""
     h = Hotspotd()
-    h.load()
+    h.load(ctx.obj['CONFIG'])
     h.start()
 
 
@@ -536,7 +547,7 @@ def start(ctx):
 def stop(ctx):
     """Stop Hotspotd"""
     h = Hotspotd()
-    h.load()
+    h.load(ctx.obj['CONFIG'])
     h.stop()
 
 

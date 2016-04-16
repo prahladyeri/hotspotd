@@ -107,6 +107,7 @@ target/
 
 # Configuration files
 *.conf
+*.json
 
 # PyEnv
 .python-version

@@ -1,3 +1,8 @@
+== Hotspotd 0.2.5 ==
+
+1. Config path option support
+2. Start/Stop command execution  bugfixes
+
 == Hotspotd 0.2.4 ==
 
 1. Hidden SSID support
