@@ -6,10 +6,14 @@ Hotspotd works by creating a virtual NAT (Network address transation) table betw
 #Installation
 To install hotspotd, just follow these steps:
 ```
-wget https://github.com/prahladyeri/hotspotd/raw/master/dist/hotspotd-latest.tar.gz
-tar xvf hotspotd-latest.tar.gz
-cd hotspotd-latest/
-sudo python setup.py install
+git clone https://github.com/0x90/hotspotd/
+cd hotspotd
+pip install -e .
+```
+
+.. or use the short way
+```
+pip install -e git+https://github.com/0x90/hotspotd
 ```
 
 To uninstall hotspotd, just say:
@@ -27,6 +31,11 @@ To install hostapd on ubuntu:
 Or on RHEL based distros:
 
 ```yum install hostapd```
+
+Arch Linux based distros:
+```
+pacman -Sy hostapd dnsmasq
+```
 
 #Usage
 
@@ -68,6 +77,7 @@ This package has been tested on Qualcomm Atheros adapter on the following distro
 
 * Ubuntu 12.04 LTS
 * Ubuntu 14.04 LTS
+* Arch Linux
 
 In theory, it should work with all other distros too (on machines having wifi adapters supported by hostapd), but you will have to try that out and tell me!
 

@@ -1,3 +1,39 @@
+== Hotspotd 0.2.5 ==
+
+1. Config path option support
+2. Start/Stop command execution  bugfixes
+
+== Hotspotd 0.2.4 ==
+
+1. Hidden SSID support
+2. Some bugfixes
+
+== Hotspotd 0.2.3 ==
+
+1. Support for OPEN auth for acces point by default
+2. Template file removed, config embedded to source code
+3. Now using logging insted of print where possible
+
+== Hotspotd 0.2.2 ==
+
+1. Program execution on start/stop addedd
+2. Some bugfixes
+
+== Hotspotd 0.2.1 ==
+
+1. Channel setting support
+2. Some bugfixes
+
+== Hotspotd 0.2.0 ==
+
+1. Rewritten to use Click library
+2. All code moved to hotspotd.py file
+3. Interfaces automatic selection algorithm changed
+4. MAC address changing support
+5. New configuration file location /etc/hotspotd.json
+6. setup.py rewritten from scratch to use setuptools instead of distutis
+
+
 == Hotspotd 0.1.7 ==
 
 1. Added HISTORY and VERSION files for tracking.
