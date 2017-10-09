@@ -9,7 +9,6 @@ import cli
 import json
 import socket
 import platform
-import datetime
 import time
 
 class Proto:
@@ -34,23 +33,44 @@ def validate_ip(addr):
 		return False # Not legal	
 
 def configure():
-	global wlan, ppp, IP, Netmask
+	global wlan, ppp, IP, Netmask, wifiNetSupply
 	#CHECK WHETHER WIFI IS SUPPORTED OR NOT
 	print 'Verifying connections'
 	wlan=''
 	ppp=''
+	wifiNetSupply = False
+	listWifiInterfaces = []
 	s=cli.execute_shell('iwconfig')
+
 	if s!=None:
 		lines = s.splitlines()
 		#print 'and it is:'  + s
 		for line in lines:
 			if not line.startswith(' ') and not line.startswith('mon.') and 'IEEE 802.11' in line:
-				wlan=line.split(' ')[0]
-				print 'Wifi interface found: ' + wlan
-			
-	if wlan=='':
+				listWifiInterfaces.append(line.split(' ')[0])
+				print 'Wifi interface found: ' + listWifiInterfaces[len(listWifiInterfaces) - 1]
+
+	if len(listWifiInterfaces)==0:
 		print 'Wireless interface could not be found on your device.'
 		return
+	elif len(listWifiInterfaces)==1:
+		wlan = listWifiInterfaces[0]
+		print 'Using iface ' + listWifiInterfaces[0] + ' as access point for wifi.'
+	else:
+		apiface=range(len(listWifiInterfaces))
+		s=''
+		while True:
+			for i in apiface:
+				print i, listWifiInterfaces[i]
+			try: s = int(input("Enter number for access point wifi NIC :"))
+			except: continue
+			if s not in apiface:
+				continue
+			wlan=listWifiInterfaces[s]
+			print 'Using iface ' + listWifiInterfaces[0] + ' as access point for wifi.'
+			break
+
+
 			
 	#print 'Verifying Internet connections'
 	s=cli.execute_shell('ifconfig')
@@ -62,7 +82,7 @@ def configure():
 			#print 'f::' + line
 			
 	if len(iface)==0:
-		print 'No network nic could be found on your deivce to interface with the LAN'
+		print 'No network nic could be found on your device to interface with the LAN'
 	elif len(iface)==1:
 		ppp=iface[0]
 		print 'Network interface found: ' + ppp
@@ -78,7 +98,10 @@ def configure():
 				continue
 			ppp=iface[s]
 			break
-	
+
+	if (ppp in listWifiInterfaces):
+		wifiNetSupply = True
+
 	while True:
 		IP= raw_input('Enter an IP address for your ap [192.168.45.1] :')
 		#except: continue
@@ -112,7 +135,7 @@ def configure():
 	dc = {'wlan': wlan, 'inet':ppp, 'ip':IP, 'netmask':Netmask, 'SSID':SSID, 'password':password}
 	json.dump(dc, open('hotspotd.json','wb'))
 	print dc
-	print 'Configuration saved. Run "hotspotd start" to start the router.'
+	print 'Configuration saved'
 	
 	#CHECK WIFI DRIVERS AND ISSUE WARNINGS
 	
@@ -129,13 +152,14 @@ def check_dependencies():
 		return True
 
 def check_interfaces():
-	global wlan, ppp
+	global wlan, ppp, wifiNetSupply, listWifiInterfaces
 	print 'Verifying interfaces'
 	s=cli.execute_shell('ifconfig')
 	lines = s.splitlines()
 	bwlan = False
 	bppp  = False
-	
+	wifiNetSupply = False
+
 	for line in lines:
 		if not line.startswith(' ') and len(line)>0:
 			text=line.split(' ')[0]
@@ -143,7 +167,23 @@ def check_interfaces():
 				bwlan = True
 			elif text.startswith(ppp):
 				bppp = True
-				
+
+	s=cli.execute_shell('iwconfig')
+	listWifiInterfaces = []
+	if s!=None:
+		lines = s.splitlines()
+		#print 'and it is:'  + s
+		for line in lines:
+			if not line.startswith(' ') and not line.startswith('mon.') and 'IEEE 802.11' in line:
+				listWifiInterfaces.append(line.split(' ')[0])
+		for iface in listWifiInterfaces:
+			if iface == wlan:
+				wifiNetSupply = True
+
+	if (wifiNetSupply):
+		bwlan = True
+
+
 	if not bwlan:
 		print wlan + ' interface was not found. Make sure your wifi is on.'
 		return False
@@ -161,11 +201,17 @@ def pre_start():
 			# trusty patch
 		# print 'applying hostapd workaround for ubuntu trusty.'
 		#29-12-2014: Rather than patching individual distros, lets make it a default.
+		
 		result = cli.execute_shell('nmcli radio wifi off')
 		if "error" in result.lower():
 			cli.execute_shell('nmcli nm wifi off')
-		cli.execute_shell('rfkill unblock wlan')
 		cli.execute_shell('sleep 1')
+		if(wifiNetSupply):
+			print 'Internet supplying nic is wireless, there will be 1 minute wait for it or you to reconnect to the wireless network.'
+			cli.execute_shell('nmcli d set ifname ' + wlan + ' managed no')
+			print 'and go...'
+			cli.execute_shell('nmcli radio wifi on')
+			cli.execute_shell('sleep 60')
 		print 'done.'
 	except:
 		pass
@@ -254,7 +300,7 @@ def start_router():
 def stop_router():
 	#bring down the interface
 	cli.execute_shell('ifconfig mon.' + wlan + ' down')
-
+	cli.execute_shell('nmcli d set ifname ' + wlan + ' managed yes')
 	#TODO: Find some workaround. killing hostapd brings down the wlan0 interface in ifconfig.
 	#~ #stop hostapd
 	#~ if cli.is_process_running('hostapd')>0:
@@ -288,14 +334,8 @@ def stop_router():
 
 def main(args):
 	global wlan, ppp, IP, Netmask
-	the_version = open("VERSION").read().strip()
-	print "****"
-	print "Hotspotd " + the_version
-	print "A simple daemon to create wifi hotspot on Linux!"
-	print "****"
-	print "Copyright (c) 2014-2016"
-	print "Prahlad Yeri<prahladyeri@yahoo.com>\n"
-	
+
+		
 	scpath = os.path.realpath(__file__)
 	realdir = os.path.dirname(scpath)
 	os.chdir(realdir)
@@ -312,7 +352,7 @@ def main(args):
 		configure()
 		newconfig=True
 	if len(cli.check_sysfile('hostapd'))==0:
-		print "hostapd is not installed on your system. This package will not work without it.\nTo install hostapd, run 'sudo apt-get install hostapd'\nor refer to http://wireless.kernel.org/en/users/Documentation/hostapd after this installation gets over."
+		print "hostapd is not installed on your system.This package will not work without it.To install it, try 'sudo apt-get install hostapd' or http://wireless.kernel.org/en/users/Documentation/hostapd after this installation gets over."
 		time.sleep(2) 
 	dc =json.load(open('hotspotd.json'))
 	wlan = dc['wlan']
