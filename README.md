@@ -64,10 +64,11 @@ The first time you run hotspotd, it will ask you for configuration values for SS
 	* If the above output includes “mac80211” then it means your wifi card will support the AP mode.	
 
 # Testing status
-This package has been tested on Qualcomm Atheros adapter on the following distros:
 
-* Ubuntu 12.04 LTS
-* Ubuntu 14.04 LTS
+This package has been tested on the Raspberry Pi 3 model B running Ubuntu 16.04 xenial armv7l Linux 4.4.38-v7+
+using USB Netgear A6100 wireless AC Adapter as internet source NIC and onboard wifi as AP.
+
+
 
 In theory, it should work with all other distros too (on machines having wifi adapters supported by hostapd), but you will have to try that out and tell me!
 
