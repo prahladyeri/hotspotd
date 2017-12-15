@@ -17,7 +17,7 @@ if __name__ == "__main__":
 	#if os.getenv('USER') != 'root':
 	if os.getenv('HOME') != '/root':
 		if os.getenv('SUDO_USER') is None:
-			print "You need root permissions to do this, sloth!"
+			print( "You need root permissions to do this, sloth!")
 			sys.exit(1)
 
 	parser = argparse.ArgumentParser(description='A small daemon to create a wifi hotspot on linux')

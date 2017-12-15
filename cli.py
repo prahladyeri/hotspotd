@@ -29,24 +29,24 @@ def execute(command='', errorstring='', wait=True, shellexec=False, ags=None):
     try:
         if (shellexec):
             p=subprocess.Popen(command, shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-            #print 'verb: ' + str(arguments.verbose)
-            if arguments.verbose: print 'command: ' + command
+            #print( 'verb: ' + str(arguments.verbose))
+            if arguments.verbose: print( 'command: ' + command)
         else:
             p=subprocess.Popen(args=ags)
-            if arguments.verbose: print 'command: ' + ags[0]
+            if arguments.verbose: print( 'command: ' + ags[0])
 			
         if wait:
             p.wait()
             result=get_stdout(p)
             return result
         else:
-            if arguments.verbose: print 'not waiting'
+            if arguments.verbose: print( 'not waiting')
             return p
     except subprocess.CalledProcessError as e:
-        print 'error occured:' + errorstring
+        print( 'error occured:' + errorstring)
         return errorstring
     except Exception as ea:
-        print 'Exception occured:' + ea.message
+        print( 'Exception occured:' + ea.message)
         return errorstring
         #show_message("Error occured: " + ea.message)
 
@@ -81,7 +81,7 @@ def set_sysctl(setting,value):
     
 
 def writelog(message):
-	if arguments.verbose: print message
+	if arguments.verbose: print( message)
     #~ global tbuffer
     #~ #tbuffer.insert_at_cursor(message + '\n')
     #~ tbuffer.insert(tbuffer.get_end_iter(),message.strip() + '\n')
