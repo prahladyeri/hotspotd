@@ -44,7 +44,7 @@ The first time you run hotspotd, it will ask you for configuration values for SS
 
 # Troubleshooting
 
-* Make sure all dependencies (hostapd, dnsmasq and python 2.7) are installed.
+* Make sure all dependencies (hostapd, dnsmasq and python 2.7+) are installed.
 	
 * hotspotd creates the NAT by manipulating iptables rules. So if you have any other firewall software that manipulates the iptables rules (such as the firewalld on fedora), make sure you disable that.
 	
