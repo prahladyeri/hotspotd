@@ -530,9 +530,9 @@ def validate_channel(ctx, param, value):
     raise click.BadParameter('Non valid WiFi channel. Should be > 0 and < 15')
 
 
-def validate_exec(ctx, param, value):
-    # TODO: add validation
-    return value
+# def validate_exec(ctx, param, value):
+#     TODO: add validation
+#     return value
 
 
 @cli.command()
