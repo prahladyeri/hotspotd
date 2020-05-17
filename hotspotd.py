@@ -103,10 +103,10 @@ class Hotspotd(object):
                 self.logger.debug('not waiting')
                 return p
         except subprocess.CalledProcessError:
-            self.logger.error('error occured:' + errorstring)
+            self.logger.error('Subprocess error occured:' + errorstring)
             return errorstring
-        except Exception as ea:
-            self.logger.error('Exception occured:' + ea.message)
+        except Exception as ex:
+            self.logger.error('Exception occured: %s' % ex)
             return errorstring
 
     def execute_shell(self, command, error=''):
@@ -136,8 +136,8 @@ class Hotspotd(object):
             ifreq = struct.pack('16sH6B8x', str(self.wlan), socket.AF_UNIX, *macbytes)
             fcntl.ioctl(s.fileno(), SIOCSIFHWADDR, ifreq)
             s.close()
-        except:
-            pass
+        except Exception as ex:
+            self.logger.error('MAC address setup error %s' % ex)
 
     def set_channel(self):
         self.logger.info('Set %s channel %i' % (self.wlan, self.channel))
@@ -146,8 +146,8 @@ class Hotspotd(object):
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             fcntl.ioctl(s.fileno(), SIOCSIWFREQ, st)
             s.close()
-        except:
-            pass
+        except Exception as ex:
+            self.logger.error('Channel setup error %s' % ex)
 
     def generate_hostapd_config(self):
         # Generate text
@@ -186,8 +186,8 @@ class Hotspotd(object):
                 self.execute_shell('rfkill unblock wlan')
                 time.sleep(1)
                 self.logger.info('done.')
-            except:
-                pass
+            except Exception as ex:
+                self.logger.error('Error caught while freeing wireless %s' % ex)
 
         # Prepare hostapd configuration file if required
         if os.path.exists(self.config_files['hostapd']):
@@ -236,9 +236,12 @@ class Hotspotd(object):
         self.execute_shell('iptables -A INPUT --in-interface %s -j ACCEPT' % self.wlan)
 
         # start dnsmasq
-        s = 'dnsmasq --dhcp-authoritative --interface=' + self.wlan + ' --dhcp-range=' + ipparts + '.20,' + ipparts + '.100,' + self.netmask + ',4h'
+        s = 'dnsmasq --dhcp-authoritative --interface=%s --dhcp-range=%s.20,%s.100,%s,4h' % \
+            (self.wlan, ipparts, ipparts, self.netmask)
         self.logger.info('running dnsmasq: %s' % s)
         self.execute_shell(s)
+
+        # start hostapd daemon
         s = 'hostapd -B %s' % self.config_files['hostapd']
         self.logger.info(s)
         time.sleep(2)
@@ -400,8 +403,8 @@ def get_interfaces_dict():
     struct_size = 40 if is_64bits else 32
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     max_possible = 8  # initial value
-    names = ''
-    outbytes = 0
+    # names = ''
+    # outbytes = 0
     while True:
         _bytes = max_possible * struct_size
         names = array.array('B')
@@ -431,7 +434,7 @@ def get_iface_list():
 
 def get_auto_wifi_interface():
     wifi_interfaces = get_ifaces_names(True)
-    net_interfaces = map(lambda (x, y): x, get_interfaces_dict().items())
+    net_interfaces = map(lambda x, y: x, get_interfaces_dict().items())
     for wifi in wifi_interfaces:
         if wifi not in net_interfaces:
             return str(wifi)
@@ -448,7 +451,8 @@ def get_default_iface():
                 if dest != '00000000' or not int(flags, 16) & 2:
                     continue
                 return iface
-            except:
+            except Exception as ex:
+                # TODO: add error handling
                 continue
 
     return None
