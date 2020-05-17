@@ -434,11 +434,7 @@ def get_iface_list():
 
 def get_auto_wifi_interface():
     wifi_interfaces = get_ifaces_names(True)
-
-    def func(x, y):
-        return x
-
-    net_interfaces = map(func, get_interfaces_dict().items())
+    net_interfaces = map(lambda (x, y): x, get_interfaces_dict().items())
     for wifi in wifi_interfaces:
         if wifi not in net_interfaces:
             return str(wifi)
