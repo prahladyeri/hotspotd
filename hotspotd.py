@@ -190,8 +190,9 @@ class Hotspotd(object):
                 self.logger.error('Error caught while freeing wireless %s' % ex)
 
         # Prepare hostapd configuration file if required
-        if os.path.exists(self.config_files['hostapd']):
-            self.generate_hostapd_config()
+        # if os.path.exists(self.config_files['hostapd']):
+        # TODO: ask if config overwrite is needed
+        self.generate_hostapd_config()
 
         # Prepare interface
         self.logger.info('using interface: %s on IP: %s MAC: %s' % (self.wlan, self.ip, self.mac))
@@ -562,6 +563,7 @@ def configure(ctx, wlan, inet, ip, netmask, mac, channel, ssid, password, hidden
 @click.pass_context
 def start(ctx):
     """Start hotspotd"""
+    # TODO: add running not in background
     h = Hotspotd()
     h.load(ctx.obj['CONFIG'])
     h.start()
