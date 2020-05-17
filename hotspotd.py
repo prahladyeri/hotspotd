@@ -20,6 +20,28 @@ import click
 __license__ = 'MIT'
 __version__ = '0.2.5'
 
+WPA2_CONFIG = """
+interface=%s
+driver=nl80211
+ssid=%s
+hw_mode=g
+channel=%i
+macaddr_acl=0
+ignore_broadcast_ssid=%i
+auth_algs=1
+wpa=2
+wpa_passphrase=%s
+wpa_key_mgmt=WPA-PSK
+rsn_pairwise=CCMP
+ieee80211d=1
+country_code=RU
+ieee80211n=1
+wmm_enabled=1
+"""
+
+
+OPEN_CONFIG = "interface=%s\nssid=%s\nhw_mode=g\nchannel=%i\nauth_algs=1\nwmm_enabled=1\n"
+
 
 class Hotspotd(object):
     def __init__(self,
@@ -131,13 +153,11 @@ class Hotspotd(object):
         # Generate text
         if self.password == '':
             # OPN
-            text = "interface=%s\nssid=%s\nhw_mode=g\nchannel=%i\nauth_algs=1\nwmm_enabled=1\n" % \
+            text = OPEN_CONFIG % \
                    (self.wlan, self.ssid, self.channel)
         else:
             # WPA2/PSK
-            text = "interface=%s\ndriver=nl80211\nssid=%s\nhw_mode=g\nchannel=%i\nmacaddr_acl=0\n" \
-                    "ignore_broadcast_ssid=%i\nauth_algs=1\nwpa=3\nwpa_passphrase=%s\n" \
-                    "wpa_key_mgmt=WPA-PSK\nwpa_pairwise=TKIP\nrsn_pairwise=CCMP\n" % \
+            text = WPA2_CONFIG % \
                    (self.wlan, self.ssid, self.channel, 1 if self.hidden else 0, self.password)
 
         # Save hostapd conf file
@@ -169,8 +189,9 @@ class Hotspotd(object):
             except:
                 pass
 
-        # Prepare hostapd configuration file
-        self.generate_hostapd_config()
+        # Prepare hostapd configuration file if required
+        if os.path.exists(self.config_files['hostapd']):
+            self.generate_hostapd_config()
 
         # Prepare interface
         self.logger.info('using interface: %s on IP: %s MAC: %s' % (self.wlan, self.ip, self.mac))
@@ -564,14 +585,19 @@ def check_sysfile(filename):
 @click.pass_context
 def check(ctx):
     """Check dependencies: hostapd, dsmasq"""
+    satisfied = True
+
     if len(check_sysfile('hostapd')) == 0:
         click.secho('hostapd executable not found. Make sure you have installed hostapd.', fg='red')
+        satisfied = False
 
     if len(check_sysfile('dnsmasq')) == 0:
         click.secho('dnsmasq executable not found. Make sure you have installed dnsmasq.', fg='red')
+        satisfied = False
 
     # TODO: add dependencies installation
-    click.secho('All dependencies found 8).', fg='green')
+    if satisfied:
+        click.secho('All dependencies found 8).', fg='green')
 
 
 if __name__ == '__main__':
