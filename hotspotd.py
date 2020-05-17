@@ -601,11 +601,11 @@ def check_sysfile(filename):
 @cli.command()
 @click.option('-o', '--output', default=HOSTAPD_CONFIG_PATH, help='Hostapd config file path')
 @click.pass_context
-def generate(ctx):
+def generate(ctx, output):
     """Generate hostapd configuration file"""
     h = Hotspotd()
     h.load(ctx.obj['CONFIG'])
-    h.generate_hostapd_config()
+    h.generate_hostapd_config(output)
 
 
 @cli.command()
