@@ -40,10 +40,19 @@ wmm_enabled=1
 """
 
 
-OPEN_CONFIG = "interface=%s\nssid=%s\nhw_mode=g\nchannel=%i\nauth_algs=1\nwmm_enabled=1\n"
+OPEN_CONFIG = """
+interface=%s
+ssid=%s
+hw_mode=g
+channel=%i
+auth_algs=1
+wmm_enabled=1
+"""
 
+HOSTAPD_CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'run.conf')
 
 class Hotspotd(object):
+
     def __init__(self,
                  wlan=None, inet=None,
                  ip='192.168.45.1', netmask='255.255.255.0', mac='00:de:ad:be:ef:00',
@@ -71,7 +80,7 @@ class Hotspotd(object):
         # Config files
         self.config_files = {'hotspotd': '/etc/hotspotd.json',
                              # TODO: move config to separate folder?
-                             'hostapd': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'run.conf')}
+                             'hostapd': HOSTAPD_CONFIG_PATH}
 
         # Initialize logger
         self.logger = logging.getLogger(__name__)
@@ -110,6 +119,7 @@ class Hotspotd(object):
             return errorstring
 
     def execute_shell(self, command, error=''):
+        self.logger.info('CMD: ' + command)
         return self.execute(command, wait=True, shellexec=True, errorstring=error)
 
     def is_process_running(self, name):
@@ -149,7 +159,7 @@ class Hotspotd(object):
         except Exception as ex:
             self.logger.error('Channel setup error %s' % ex)
 
-    def generate_hostapd_config(self):
+    def generate_hostapd_config(self, config_path=HOSTAPD_CONFIG_PATH):
         # Generate text
         if self.password == '':
             # OPN
@@ -161,9 +171,10 @@ class Hotspotd(object):
                    (self.wlan, self.ssid, self.channel, 1 if self.hidden else 0, self.password)
 
         # Save hostapd conf file
-        with open(self.config_files['hostapd'], 'w') as f:
+        # with open(self.config_files['hostapd'], 'w') as f:
+        with open(config_path, 'w') as f:
             f.write(text)
-            self.logger.info('created hostapd configuration: %s' % self.config_files['hostapd'])
+            self.logger.info('created hostapd configuration: %s' % config_path)
 
     def start(self, free=False):
         # Check WiFi interfaces existence
@@ -199,9 +210,9 @@ class Hotspotd(object):
         self.execute_shell('ifconfig ' + self.wlan + ' down')
         self.set_mac()
         self.execute_shell('ifconfig %s up %s netmask %s' % (self.wlan, self.ip, self.netmask))
-
-        # Split IP to partss
         time.sleep(2)
+
+        # Split IP to parts
         i = self.ip.rindex('.')
         ipparts = self.ip[0:i]
 
@@ -585,6 +596,16 @@ def check_sysfile(filename):
         return '/sbin/' + filename
     else:
         return ''
+
+
+@cli.command()
+@click.option('-o', '--output', default=HOSTAPD_CONFIG_PATH, help='Hostapd config file path')
+@click.pass_context
+def generate(ctx):
+    """Generate hostapd configuration file"""
+    h = Hotspotd()
+    h.load(ctx.obj['CONFIG'])
+    h.generate_hostapd_config()
 
 
 @cli.command()
