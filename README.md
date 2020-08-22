@@ -1,3 +1,8 @@
+![license](https://img.shields.io/github/license/prahladyeri/hotspotd.svg)
+![last-commit](https://img.shields.io/github/last-commit/prahladyeri/hotspotd.svg)
+[![donate](https://img.shields.io/badge/-Donate-blue.svg?logo=paypal)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=JM8FUXNFUK6EU)
+[![follow](https://img.shields.io/twitter/follow/prahladyeri.svg?style=social)](https://twitter.com/prahladyeri)
+
 # Introduction
 *Hotspotd* is a small daemon to create a wifi hotspot on linux. It depends on *hostapd* for AP provisioning and *dnsmasq* to assign IP addresses to devices.
 
@@ -75,3 +80,10 @@ In theory, it should work with all other distros too (on machines having wifi ad
 * Replace `sudo` with `su` or `su -c` if you manage superuser access in that manner.
 * PyPI home page could be found at https://pypi.python.org/pypi/hotspotd.
 * I need someone to test this daemon across various linux distros. If you are interested in testing of open-source apps, please contact me.
+
+## Donation
+
+Please consider donating if this tool has helped you in any way. You can also hire me through [upwork](https://www.upwork.com/freelancers/~01e977ff45b62e031c) or [fiverr](https://www.fiverr.com/prahladyeri) to get professional support and customization.
+
+- [Donate through PayPal](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=JM8FUXNFUK6EU)
+- [Donate through Patreon](https://www.patreon.com/prahladyeri)
