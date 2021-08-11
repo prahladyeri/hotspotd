@@ -67,7 +67,7 @@ The first time you run hotspotd, it will ask you for configuration values for SS
 
 		```modinfo ath9k | grep depend```
 
-	* If the above output includes “mac80211” then it means your wifi card will support the AP mode.	
+	* If the above output includes “80211” then it means your wifi card will support the AP mode.	
 
 # Testing status
 This package has been tested on Qualcomm Atheros adapter on the following distros:
